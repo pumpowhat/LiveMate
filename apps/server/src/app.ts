@@ -5,6 +5,8 @@ import { Server } from "socket.io";
 import { sellerRoom, type Comment, type LiveSession, type Product } from "@livemate/shared";
 import { CommentPoller } from "./facebook/poller.ts";
 import { GraphClient } from "./facebook/graph.ts";
+import { createFacebookRouter } from "./facebook/routes.ts";
+import { InMemoryFacebookConnectionStore } from "./facebook/store.ts";
 import { InMemoryOrderGateway } from "./pipeline/memory-gateway.ts";
 import type { LlmClient } from "./pipeline/llm.ts";
 import { CommentPipeline, type PipelineSink } from "./pipeline/pipeline.ts";
@@ -19,9 +21,24 @@ export interface AppConfig {
   webOrigin: string;
   publicWebUrl: string;
   vietqr: { bankBin: string; accountNumber: string } | null;
-  facebook: { graphVersion: string; pageToken: string } | null;
+  /**
+   * Facebook. `pageToken` (FB_PAGE_TOKEN) dùng cho dev/spike; `app` bật luồng "Kết nối Fanpage".
+   * Cần ít nhất graphVersion.
+   */
+  facebook: {
+    graphVersion: string;
+    pageToken?: string;
+    app?: { appId: string; appSecret: string; redirectUri: string };
+  } | null;
   /** Lịch sử boom đơn mẫu cho demo, ví dụ { "u_boom": { boomed: 2, completed: 0 } }. */
   buyerHistorySeed?: Record<string, { boomed: number; completed: number }>;
+  /** Khóa cho POST /api/ingest (extension). Bỏ trống = không kiểm tra (chỉ dùng khi dev). */
+  ingestKey?: string;
+  /**
+   * Bật /api/dev/*, cho phép /api/ingest không cần key và seller "demo" cho Kết nối Fanpage.
+   * CHỈ dùng khi chạy local. index.ts bật khi NODE_ENV !== "production" (hoặc DEV_ROUTES=1).
+   */
+  devRoutes?: boolean;
 }
 
 /**
@@ -31,6 +48,8 @@ export interface AppConfig {
 export function createApp(cfg: AppConfig) {
   const app = express();
   app.use(express.json());
+  // Route dev không có xác thực: tắt hẳn khi deploy.
+  app.use("/api/dev", (_req, res, next) => (cfg.devRoutes ? next() : void res.status(404).json({ error: "Không có route này" })));
   const httpServer = createServer(app);
   const io: Io = new Server(httpServer, { cors: { origin: cfg.webOrigin } });
 
@@ -48,12 +67,19 @@ export function createApp(cfg: AppConfig) {
   const sessionByRoom = new Map([[session.roomCode, session.id]]);
 
   const graph = cfg.facebook ? new GraphClient({ graphVersion: cfg.facebook.graphVersion }) : null;
+  // Token Fanpage đang dùng: từ "Kết nối Fanpage" (ưu tiên) hoặc FB_PAGE_TOKEN.
+  let activePageToken: string | null = cfg.facebook?.pageToken ?? null;
   const sink = createSocketSink({
     io,
     roomOf: (id) => rooms.get(id),
     orderUrl: (token) => `${cfg.publicWebUrl}/o/${token}`,
-    ...(graph && cfg.facebook
-      ? { replyOnFacebook: async (_sid: string, fbCommentId: string, text: string) => void (await graph.replyToComment(fbCommentId, text, cfg.facebook!.pageToken)) }
+    ...(graph
+      ? {
+          replyOnFacebook: async (_sid: string, fbCommentId: string, text: string) => {
+            if (!activePageToken) return;
+            await graph.replyToComment(fbCommentId, text, activePageToken);
+          },
+        }
       : {}),
   });
   // Cảnh báo rủi ro: chỉ người bán thấy.
@@ -112,6 +138,69 @@ export function createApp(cfg: AppConfig) {
   });
 
   // ---------- HTTP ----------
+
+  /**
+   * Bình luận từ extension đọc live thật (TikTok / Facebook trên Chrome).
+   * Bảo vệ bằng header X-Ingest-Key khi cấu hình INGEST_KEY. Chống trùng vì
+   * extension có thể đọc lại cùng một bình luận khi trang render lại.
+   */
+  const recentIngest = new Map<string, number>(); // key -> thời điểm (ms)
+  // 10 phút: TikTok/Facebook vẽ lại các dòng chat cũ khi cuộn, extension sẽ đọc lại —
+  // cửa sổ ngắn sẽ biến bình luận cũ thành đơn trùng.
+  const INGEST_DEDUPE_MS = 10 * 60_000;
+  const INGEST_DEDUPE_MAX = 20_000;
+  app.use("/api/ingest", (req, res, next) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Headers", "Content-Type, X-Ingest-Key");
+    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    if (req.method === "OPTIONS") return void res.sendStatus(204);
+    next();
+  });
+  app.post("/api/ingest", (req, res) => {
+    if (!cfg.ingestKey && !cfg.devRoutes) return void res.status(503).json({ error: "Chưa cấu hình INGEST_KEY trên server" });
+    if (cfg.ingestKey && req.get("X-Ingest-Key") !== cfg.ingestKey) return void res.status(401).json({ error: "Sai ingest key" });
+    const body = req.body as { roomCode?: unknown; platform?: unknown; comments?: unknown };
+    const sessionId = sessionByRoom.get(String(body?.roomCode ?? ""));
+    if (!sessionId) return void res.status(404).json({ error: "Không có phòng này" });
+    if (!Array.isArray(body.comments) || body.comments.length > 100) return void res.status(400).json({ error: "comments phải là mảng tối đa 100 phần tử" });
+    const platform = String(body.platform ?? "live").replace(/[^\w-]/g, "").slice(0, 20) || "live";
+
+    const now = Date.now();
+    // Map giữ thứ tự chèn: xóa từ đầu cho tới khi gặp mục còn hạn, và giới hạn kích thước.
+    for (const [k, t] of recentIngest) {
+      if (now - t <= INGEST_DEDUPE_MS && recentIngest.size <= INGEST_DEDUPE_MAX) break;
+      recentIngest.delete(k);
+    }
+
+    let accepted = 0;
+    let duplicates = 0;
+    for (const raw of body.comments as Record<string, unknown>[]) {
+      const name = String(raw?.buyerName ?? "").trim().slice(0, 60);
+      const text = String(raw?.text ?? "").trim().slice(0, 500);
+      if (!name || !text) continue;
+      // Không có id ổn định từ DOM: dùng tên hiển thị làm id người mua, theo từng nền tảng.
+      const buyerExternalId = `${platform}:${String(raw?.buyerExternalId ?? name).slice(0, 100)}`;
+      const key = raw?.externalId ? `id:${String(raw.externalId)}` : `${buyerExternalId}|${text}`;
+      if (recentIngest.has(key)) {
+        duplicates++;
+        continue;
+      }
+      recentIngest.set(key, now);
+      accepted++;
+      ingest({
+        id: `x_${randomUUID()}`,
+        sessionId,
+        source: "extension",
+        ...(raw?.externalId ? { externalId: String(raw.externalId).slice(0, 100) } : {}),
+        buyerExternalId,
+        buyerName: name,
+        text,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    res.json({ accepted, duplicates });
+  });
+
   app.get("/health", (_req, res) => {
     res.json({ ok: true, llm: cfg.llm.name, facebook: Boolean(cfg.facebook), vietqr: Boolean(cfg.vietqr) });
   });
@@ -142,15 +231,14 @@ export function createApp(cfg: AppConfig) {
 
   // Dev: theo dõi bình luận một live video / bài đăng của Fanpage (dùng FB_PAGE_TOKEN).
   let poller: CommentPoller | null = null;
-  app.post("/api/dev/facebook/watch", (req, res) => {
-    if (!graph || !cfg.facebook) return void res.status(503).json({ error: "Chưa cấu hình FB_GRAPH_VERSION / FB_PAGE_TOKEN" });
-    const objectId = String(req.body?.objectId ?? "");
-    if (!/^[\d_]+$/.test(objectId)) return void res.status(400).json({ error: "objectId không hợp lệ" });
+  const watchFacebook = (pageToken: string, objectId: string) => {
+    if (!graph) throw new Error("Chưa cấu hình FB_GRAPH_VERSION");
     poller?.stop();
+    activePageToken = pageToken;
     poller = new CommentPoller({
       client: graph,
       objectId,
-      pageToken: cfg.facebook.pageToken,
+      pageToken,
       sessionId: session.id,
       onComment: ingest,
       onError: (e) => console.error("[facebook] poller stopped", e),
@@ -158,6 +246,31 @@ export function createApp(cfg: AppConfig) {
     poller.start();
     session.facebookObjectId = objectId;
     io.to(session.roomCode).emit("session:updated", session);
+  };
+
+  // Luồng thật: /api/facebook/login -> callback -> chọn Fanpage -> /api/facebook/watch.
+  if (graph && cfg.facebook?.app) {
+    app.use(
+      "/api",
+      createFacebookRouter({
+        graph,
+        oauth: { ...cfg.facebook.app, graphVersion: cfg.facebook.graphVersion },
+        store: new InMemoryFacebookConnectionStore(),
+        publicWebUrl: cfg.publicWebUrl,
+        // TODO(#3): lấy sellerId từ phiên đăng nhập. Tới lúc đó, khi deploy (không phải dev)
+        // trả null => 401, để người lạ không ngắt kết nối / đổi video đang theo dõi.
+        resolveSellerId: () => (cfg.devRoutes ? "demo" : null),
+        onWatch: ({ pageToken, objectId }) => watchFacebook(pageToken, objectId),
+      }),
+    );
+  }
+
+  // Dev: theo dõi bằng FB_PAGE_TOKEN trong .env (không qua đăng nhập).
+  app.post("/api/dev/facebook/watch", (req, res) => {
+    if (!graph || !cfg.facebook?.pageToken) return void res.status(503).json({ error: "Chưa cấu hình FB_GRAPH_VERSION / FB_PAGE_TOKEN" });
+    const objectId = String(req.body?.objectId ?? "");
+    if (!/^[\d_]+$/.test(objectId)) return void res.status(400).json({ error: "objectId không hợp lệ" });
+    watchFacebook(cfg.facebook.pageToken, objectId);
     res.json({ watching: objectId });
   });
 

@@ -131,3 +131,36 @@ test("updates the line just created earlier in the same batch after setOrder", a
     { kind: "update", commentId: "c2", buyer: buyer.externalId, orderId: order.id, line: { productId: "p_v03", size: "M" }, patch: { size: "L" } },
   ]);
 });
+
+// --- Chặn LLM bịa dữ kiện trong câu trả lời "ask" ---
+const ask = (over: Partial<Extract<AiAction, { action: "ask" }>>): AiAction => ({
+  commentId: "c1",
+  buyer: "buyer",
+  action: "ask",
+  reply: "(LLM viết)",
+  reason: "question",
+  item: null,
+  size: null,
+  qty: null,
+  ...over,
+});
+
+test("ask invalid_size but size actually exists -> creates the order", () => {
+  const ops = resolveActions([ask({ reason: "invalid_size", item: "A02", size: "s", reply: "A02 chỉ có size M/L ạ" })], catalog, new Map());
+  expect(ops).toEqual([{ kind: "add", commentId: "c1", buyer: "buyer", line: { productId: "p_a02", size: "S", qty: 1 } }]);
+});
+
+test("ask invalid_size with a truly invalid size -> reply written from catalog, not by LLM", () => {
+  const ops = resolveActions([ask({ reason: "invalid_size", item: "V03", size: "XL", reply: "V03 chỉ có size M ạ" })], catalog, new Map());
+  expect(ops).toMatchObject([{ kind: "reply", reason: "invalid_size", text: "V03 chỉ có size S/M/L ạ." }]);
+});
+
+test("ask missing_size keeps asking (does not guess) with sizes from catalog", () => {
+  const ops = resolveActions([ask({ reason: "missing_size", item: "V05", reply: "chọn size nha" })], catalog, new Map());
+  expect(ops).toMatchObject([{ kind: "reply", reason: "missing_size", text: "Bạn chọn size nào ạ? V05 có size S/M/L/XL." }]);
+});
+
+test("ask question keeps the LLM reply", () => {
+  const ops = resolveActions([ask({ reason: "question", item: "V03", reply: "V03 giá 250.000đ ạ" })], catalog, new Map());
+  expect(ops).toMatchObject([{ kind: "reply", reason: "ask", text: "V03 giá 250.000đ ạ" }]);
+});

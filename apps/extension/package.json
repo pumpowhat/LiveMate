@@ -1,0 +1,14 @@
+{
+  "name": "@livemate/extension",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "echo 'extension: plain JS, no typecheck'"
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.1",
+    "vitest": "^5.1.2"
+  }
+}

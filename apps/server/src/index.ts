@@ -14,7 +14,17 @@ const { httpServer } = createApp({
   publicWebUrl: env.PUBLIC_WEB_URL ?? "http://localhost:3000",
   vietqr: env.VIETQR_BANK_BIN && env.VIETQR_ACCOUNT_NUMBER ? { bankBin: env.VIETQR_BANK_BIN, accountNumber: env.VIETQR_ACCOUNT_NUMBER } : null,
   buyerHistorySeed: { u_boom: { boomed: 2, completed: 1 } },
-  facebook: env.FB_GRAPH_VERSION && env.FB_PAGE_TOKEN ? { graphVersion: env.FB_GRAPH_VERSION, pageToken: env.FB_PAGE_TOKEN } : null,
+  ...(env.INGEST_KEY ? { ingestKey: env.INGEST_KEY } : {}),
+  devRoutes: env.NODE_ENV !== "production" || env.DEV_ROUTES === "1",
+  facebook: env.FB_GRAPH_VERSION
+    ? {
+        graphVersion: env.FB_GRAPH_VERSION,
+        ...(env.FB_PAGE_TOKEN ? { pageToken: env.FB_PAGE_TOKEN } : {}),
+        ...(env.FB_APP_ID && env.FB_APP_SECRET && env.FB_REDIRECT_URI
+          ? { app: { appId: env.FB_APP_ID, appSecret: env.FB_APP_SECRET, redirectUri: env.FB_REDIRECT_URI } }
+          : {}),
+      }
+    : null,
 });
 
 const port = Number(env.PORT ?? 4000);
