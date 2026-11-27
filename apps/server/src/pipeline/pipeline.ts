@@ -69,16 +69,30 @@ export class CommentPipeline {
     else slot.timer ??= setTimeout(() => this.flush(comment.sessionId), this.windowMs);
   }
 
-  /** Gửi lô hiện tại của phiên vào hàng đợi xử lý. */
+  /**
+   * Xếp một lượt xử lý vào hàng đợi của phiên. Lô được lấy ra lúc lượt đó BẮT ĐẦU
+   * chạy (không phải lúc hẹn giờ): khi LLM đang bận hoặc chờ quota, bình luận mới
+   * dồn vào cùng một lô lớn hơn thay vì sinh thêm lần gọi LLM.
+   */
   flush(sessionId: string): Promise<void> {
     const slot = this.pending.get(sessionId);
-    if (slot) {
-      this.pending.delete(sessionId);
-      if (slot.timer) clearTimeout(slot.timer);
+    if (slot?.timer) {
+      clearTimeout(slot.timer);
+      slot.timer = null;
     }
-    const batch = slot?.comments ?? [];
     const prev = this.chains.get(sessionId) ?? Promise.resolve();
-    const next = prev.then(() => (batch.length ? this.processBatch(sessionId, batch) : undefined));
+    const next = prev.then(() => {
+      const current = this.pending.get(sessionId);
+      if (!current?.comments.length) return;
+      const batch = current.comments.splice(0, this.maxBatch);
+      if (current.comments.length === 0) {
+        this.pending.delete(sessionId);
+        if (current.timer) clearTimeout(current.timer);
+      } else {
+        void this.flush(sessionId); // phần dư: lượt kế tiếp
+      }
+      return this.processBatch(sessionId, batch);
+    });
     this.chains.set(sessionId, next);
     return next;
   }

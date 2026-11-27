@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { FakeRegexLlm } from "./fake-llm.ts";
+import { ResilientLlm, type ResilientEntry } from "./resilient-llm.ts";
 
 /** Một lần gọi LLM: system + user -> chuỗi JSON. */
 export interface LlmClient {
@@ -30,8 +31,9 @@ export class OpenAiCompatibleClient implements LlmClient {
     this.client = new OpenAI({
       apiKey: cfg.apiKey,
       ...(cfg.baseURL ? { baseURL: cfg.baseURL } : {}),
-      timeout: cfg.timeoutMs ?? 15_000,
-      maxRetries: 1,
+      timeout: cfg.timeoutMs ?? 10_000,
+      // ResilientLlm lo việc thử lại / chuyển model; SDK không tự retry để khỏi chờ vô ích.
+      maxRetries: 0,
     });
   }
 
@@ -54,26 +56,43 @@ export class OpenAiCompatibleClient implements LlmClient {
   }
 }
 
-/** Đọc cấu hình từ env. Trả về các client có đủ key + model. */
-export function llmClientsFromEnv(env: NodeJS.ProcessEnv = process.env): LlmClient[] {
-  const clients: LlmClient[] = [];
-  if (env.GEMINI_API_KEY && env.GEMINI_MODEL) {
-    clients.push(
-      new OpenAiCompatibleClient({ name: "gemini", apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL, baseURL: GEMINI_OPENAI_BASE_URL }),
-    );
+const splitModels = (v: string | undefined) => (v ?? "").split(",").map((m) => m.trim()).filter(Boolean);
+
+/**
+ * Đọc cấu hình từ env. GEMINI_MODEL / OPENAI_MODEL nhận danh sách phân tách bằng dấu phẩy,
+ * ví dụ GEMINI_MODEL=gemini-3.5-flash-lite,gemini-3.5-flash (model đầu là ưu tiên).
+ */
+export function llmEntriesFromEnv(env: NodeJS.ProcessEnv = process.env): ResilientEntry[] {
+  const entries: ResilientEntry[] = [];
+  const gRpm = Number(env.GEMINI_RPM ?? 15);
+  const oRpm = Number(env.OPENAI_RPM ?? 0);
+  if (env.GEMINI_API_KEY) {
+    for (const model of splitModels(env.GEMINI_MODEL)) {
+      entries.push({ rpm: gRpm, client: new OpenAiCompatibleClient({ name: "gemini", apiKey: env.GEMINI_API_KEY, model, baseURL: GEMINI_OPENAI_BASE_URL }) });
+    }
   }
-  if (env.OPENAI_API_KEY && env.OPENAI_MODEL) {
-    clients.push(new OpenAiCompatibleClient({ name: "openai", apiKey: env.OPENAI_API_KEY, model: env.OPENAI_MODEL }));
+  if (env.OPENAI_API_KEY) {
+    for (const model of splitModels(env.OPENAI_MODEL)) {
+      entries.push({ rpm: oRpm, client: new OpenAiCompatibleClient({ name: "openai", apiKey: env.OPENAI_API_KEY, model }) });
+    }
   }
-  return clients;
+  return entries;
 }
 
-/** Client chính cho pipeline: LLM_PROVIDER=gemini|openai (mặc định: client đầu tiên có cấu hình). */
+/** Từng model riêng lẻ (dùng cho eval: mỗi model một ResilientLlm để chờ quota thay vì báo lỗi). */
+export function llmClientsFromEnv(env: NodeJS.ProcessEnv = process.env): LlmClient[] {
+  return llmEntriesFromEnv(env).map((e) => new ResilientLlm([e], { maxWaitMs: 90_000 }));
+}
+
+/**
+ * Client cho pipeline: mọi model đã cấu hình, có giới hạn RPM và tự chuyển model khi lỗi.
+ * LLM_PROVIDER=gemini|openai đưa provider đó lên đầu; LLM_PROVIDER=fake dùng regex (dev).
+ */
 export function primaryLlmFromEnv(env: NodeJS.ProcessEnv = process.env): LlmClient {
   const wanted = env.LLM_PROVIDER;
   if (wanted === "fake") return new FakeRegexLlm();
-  const all = llmClientsFromEnv(env);
-  const picked = wanted ? all.find((c) => c.name.startsWith(`${wanted}:`)) : all[0];
-  if (!picked) throw new Error("Chưa cấu hình LLM: cần GEMINI_API_KEY+GEMINI_MODEL hoặc OPENAI_API_KEY+OPENAI_MODEL");
-  return picked;
+  const entries = llmEntriesFromEnv(env);
+  if (!entries.length) throw new Error("Chưa cấu hình LLM: cần GEMINI_API_KEY+GEMINI_MODEL hoặc OPENAI_API_KEY+OPENAI_MODEL (hoặc LLM_PROVIDER=fake)");
+  if (wanted) entries.sort((a, b) => Number(!a.client.name.startsWith(`${wanted}:`)) - Number(!b.client.name.startsWith(`${wanted}:`)));
+  return new ResilientLlm(entries);
 }
