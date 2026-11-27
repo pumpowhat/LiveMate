@@ -1,0 +1,9 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  esbuild: true
+  prisma: true
+  "@prisma/engines": true
+minimumReleaseAgeExclude:
+  - openai@7.65.0
