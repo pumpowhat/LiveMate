@@ -1,0 +1,726 @@
+[
+  {
+    "id": "c01",
+    "tag": "basic",
+    "featured": "V03",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "lan.nguyen", "text": "cho em 1 váy V03 size M ạ" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "lan.nguyen", "action": "create", "item": "V03", "size": "M", "qty": 1 }
+    ],
+    "note": "Đặt hàng cơ bản nêu rõ mã V03, size M và số lượng 1"
+  },
+  {
+    "id": "c02",
+    "tag": "basic",
+    "featured": "A01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "minh_t", "text": "đặt hai cái áo thun đen basic size L nha shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "minh_t", "action": "create", "item": "A01", "size": "L", "qty": 2 }
+    ],
+    "note": "Đặt theo tên sản phẩm và số lượng bằng chữ 'hai cái' thành 2"
+  },
+  {
+    "id": "c03",
+    "tag": "basic",
+    "featured": "Q01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "hoa.tran", "text": "em lấy 1 quần jean Q01 size 27 nhé" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "hoa.tran", "action": "create", "item": "Q01", "size": "27", "qty": 1 }
+    ],
+    "note": "Đặt quần jean Q01 với size số '27'"
+  },
+  {
+    "id": "c04",
+    "tag": "basic",
+    "featured": "T01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "tuan99", "text": "cho mình mua 3 túi tote canvas T01" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "tuan99", "action": "create", "item": "T01", "size": null, "qty": 3 }
+    ],
+    "note": "Túi tote T01 không có size nên size là null"
+  },
+  {
+    "id": "c05",
+    "tag": "basic",
+    "featured": "K01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "linh.pham", "text": "lấy em 4 kẹp tóc ngọc trai nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "linh.pham", "action": "create", "item": "K01", "size": null, "qty": 4 }
+    ],
+    "note": "Kẹp tóc K01 không có size nên size là null"
+  },
+  {
+    "id": "c06",
+    "tag": "basic",
+    "featured": null,
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "huong_le", "text": "gửi chị một áo sơ mi trắng A02 size S nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "huong_le", "action": "create", "item": "A02", "size": "S", "qty": 1 }
+    ],
+    "note": "Không có sản phẩm đang live nhưng khách ghi rõ mã A02 và size S"
+  },
+  {
+    "id": "c07",
+    "tag": "slang",
+    "featured": "V05",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "vy.vo", "text": "chốt đơn em váy suông trắng size M nha shop ơi" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "vy.vo", "action": "create", "item": "V05", "size": "M", "qty": 1 }
+    ],
+    "note": "Khẩu ngữ livestream 'chốt đơn' cho V05 size M"
+  },
+  {
+    "id": "c08",
+    "tag": "slang",
+    "featured": "A01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "nam.bui", "text": "ib em 1 áo A01 XL liền nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "nam.bui", "action": "create", "item": "A01", "size": "XL", "qty": 1 }
+    ],
+    "note": "Khẩu ngữ 'ib em' mang ý nghĩa đặt hàng A01 size XL"
+  },
+  {
+    "id": "c09",
+    "tag": "slang",
+    "featured": "V03",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "nhi_dang", "text": "em xin 1 bé váy hoa nhí S nhaaa" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "nhi_dang", "action": "create", "item": "V03", "size": "S", "qty": 1 }
+    ],
+    "note": "Khẩu ngữ 'em xin 1 bé' chỉ ý định chốt V03 size S"
+  },
+  {
+    "id": "c10",
+    "tag": "slang",
+    "featured": "Q01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "trang.do", "text": "lụm liền 1 em quần ống rộng 29 nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "trang.do", "action": "create", "item": "Q01", "size": "29", "qty": 1 }
+    ],
+    "note": "Từ lóng 'lụm liền 1 em' tương đương đặt mua Q01 size 29"
+  },
+  {
+    "id": "c11",
+    "tag": "slang",
+    "featured": "T01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "my_hanh", "text": "lên đơn giúp e hai túi tote T01 đi shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "my_hanh", "action": "create", "item": "T01", "size": null, "qty": 2 }
+    ],
+    "note": "Khẩu ngữ 'lên đơn' kèm số lượng chữ 'hai'"
+  },
+  {
+    "id": "c12",
+    "tag": "slang",
+    "featured": "A02",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "khang.truong", "text": "chấm bài hốt 1 áo sơ mi A02 M nhen" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "khang.truong", "action": "create", "item": "A02", "size": "M", "qty": 1 }
+    ],
+    "note": "Từ lóng 'hốt' mang nghĩa đặt mua A02 size M"
+  },
+  {
+    "id": "c13",
+    "tag": "abbrev",
+    "featured": "V03",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "thuy.vu", "text": "chot v03 sz l 2c" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "thuy.vu", "action": "create", "item": "V03", "size": "L", "qty": 2 }
+    ],
+    "note": "Không dấu, viết thường mã, viết tắt 'sz', '2c'"
+  },
+  {
+    "id": "c14",
+    "tag": "abbrev",
+    "featured": "A01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "duc_hoang", "text": "lay ao den L 1c nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "duc_hoang", "action": "create", "item": "A01", "size": "L", "qty": 1 }
+    ],
+    "note": "Không dấu, gọi tắt 'ao den' cho Áo thun đen basic A01"
+  },
+  {
+    "id": "c15",
+    "tag": "abbrev",
+    "featured": "V05",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "mai.phan", "text": "cho e vay suong trang s xl 1 cai" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "mai.phan", "action": "create", "item": "V05", "size": "XL", "qty": 1 }
+    ],
+    "note": "Không dấu và viết tắt 's xl' nghĩa là size XL"
+  },
+  {
+    "id": "c16",
+    "tag": "abbrev",
+    "featured": "Q01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "quynh_nhu", "text": "chto q01 sz26 nhe" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "quynh_nhu", "action": "create", "item": "Q01", "size": "26", "qty": 1 }
+    ],
+    "note": "Lỗi chính tả 'chto' (chốt) và viết dính 'sz26'"
+  },
+  {
+    "id": "c17",
+    "tag": "abbrev",
+    "featured": "K01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "yen.ngo", "text": "k01 3c nhe shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "yen.ngo", "action": "create", "item": "K01", "size": null, "qty": 3 }
+    ],
+    "note": "Viết ngắn gọn mã thường 'k01' và '3c'"
+  },
+  {
+    "id": "c18",
+    "tag": "abbrev",
+    "featured": "A02",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "dat.ly", "text": "cho m 2 sm trang sz m" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "dat.ly", "action": "create", "item": "A02", "size": "M", "qty": 2 }
+    ],
+    "note": "Viết tắt 'm' (mình), 'sm trang' (sơ mi trắng), 'sz m'"
+  },
+  {
+    "id": "c19",
+    "tag": "context",
+    "featured": "V03",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "lan.nguyen", "text": "chốt cái này size M nha shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "lan.nguyen", "action": "create", "item": "V03", "size": "M", "qty": 1 }
+    ],
+    "note": "'cái này' tham chiếu tới sản phẩm đang live là V03"
+  },
+  {
+    "id": "c20",
+    "tag": "context",
+    "featured": "Q01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "hien.tran", "text": "cho em mẫu đang live size 28 với ạ" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "hien.tran", "action": "create", "item": "Q01", "size": "28", "qty": 1 }
+    ],
+    "note": "'mẫu đang live' tham chiếu tới featured Q01"
+  },
+  {
+    "id": "c21",
+    "tag": "context",
+    "featured": "T01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "bao.chau", "text": "lấy 2 cái đang cầm trên tay nha chị" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "bao.chau", "action": "create", "item": "T01", "size": null, "qty": 2 }
+    ],
+    "note": "'cái đang cầm trên tay' tham chiếu sản phẩm đang live T01"
+  },
+  {
+    "id": "c22",
+    "tag": "context",
+    "featured": "A02",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "thu.ha", "text": "chốt áo sơ mi trắng A02 size S nha" },
+      { "id": "m2", "buyer": "oanh.nguyen", "text": "cho e y như bạn trên nhưng size L ạ" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "thu.ha", "action": "create", "item": "A02", "size": "S", "qty": 1 },
+      { "commentId": "m2", "buyer": "oanh.nguyen", "action": "create", "item": "A02", "size": "L", "qty": 1 }
+    ],
+    "note": "Bình luận m2 dùng ngữ cảnh 'như bạn trên' để chốt A02 size L"
+  },
+  {
+    "id": "c23",
+    "tag": "context",
+    "featured": "V05",
+    "existingOrders": {
+      "thao.le": [
+        { "item": "V03", "size": "S", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "thao.le", "text": "cho em lấy thêm 1 cái váy hoa hồi nãy size M cho bạn nhé" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "thao.le", "action": "create", "item": "V03", "size": "M", "qty": 1 }
+    ],
+    "note": "Đang live V05, khách gọi 'váy hoa hồi nãy' (V03 trong đơn trước) với size mới M nên tạo dòng mới"
+  },
+  {
+    "id": "c24",
+    "tag": "context",
+    "featured": "K01",
+    "existingOrders": {
+      "ngoc.anh": [
+        { "item": "A01", "size": "M", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "ngoc.anh", "text": "lấy thêm một cái áo hồi nãy size L nữa nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "ngoc.anh", "action": "create", "item": "A01", "size": "L", "qty": 1 }
+    ],
+    "note": "Đang live K01, khách tham chiếu 'áo hồi nãy' (A01 trong existingOrders) với size L khác size cũ M"
+  },
+  {
+    "id": "c25",
+    "tag": "update",
+    "featured": "V03",
+    "existingOrders": {
+      "lan.nguyen": [
+        { "item": "V03", "size": "M", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "lan.nguyen", "text": "shop ơi đổi váy V03 của em sang size L nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "lan.nguyen", "action": "update", "item": "V03", "size": "L", "qty": null, "newItem": null }
+    ],
+    "note": "Cập nhật size của V03 từ M sang L, qty và newItem giữ null"
+  },
+  {
+    "id": "c26",
+    "tag": "update",
+    "featured": "A01",
+    "existingOrders": {
+      "minh_t": [
+        { "item": "A01", "size": "L", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "minh_t", "text": "cho em thêm 1 cái áo thun đen nữa nha shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "minh_t", "action": "update", "item": "A01", "size": null, "qty": 2, "newItem": null }
+    ],
+    "note": "Khách đã có 1 A01, nói 'thêm 1 cái nữa' nên cập nhật qty thành 2"
+  },
+  {
+    "id": "c27",
+    "tag": "update",
+    "featured": "K01",
+    "existingOrders": {
+      "linh.pham": [
+        { "item": "K01", "size": null, "qty": 2 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "linh.pham", "text": "kẹp tóc K01 em sửa lại thành 5 cái nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "linh.pham", "action": "update", "item": "K01", "size": null, "qty": 5, "newItem": null }
+    ],
+    "note": "Sửa trực tiếp số lượng kẹp tóc K01 từ 2 thành 5"
+  },
+  {
+    "id": "c28",
+    "tag": "update",
+    "featured": "V05",
+    "existingOrders": {
+      "vy.vo": [
+        { "item": "V03", "size": "M", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "vy.vo", "text": "thôi đổi cái váy hoa nhí sang váy suông trắng V05 giúp e nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "vy.vo", "action": "update", "item": "V03", "size": null, "qty": null, "newItem": "V05" }
+    ],
+    "note": "Đổi mã sản phẩm từ V03 sang V05, giữ nguyên size M và qty 1"
+  },
+  {
+    "id": "c29",
+    "tag": "update",
+    "featured": "A02",
+    "existingOrders": {
+      "nam.bui": [
+        { "item": "A01", "size": "XL", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "nam.bui", "text": "đổi áo thun A01 sang áo sơ mi A02 size L cho mình nhé" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "nam.bui", "action": "update", "item": "A01", "size": "L", "qty": null, "newItem": "A02" }
+    ],
+    "note": "Đổi cả mã sản phẩm từ A01 sang A02 và đổi size sang L"
+  },
+  {
+    "id": "c30",
+    "tag": "update",
+    "featured": "Q01",
+    "existingOrders": {
+      "hoa.tran": [
+        { "item": "Q01", "size": "27", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "hoa.tran", "text": "quần jean đổi sang size 28 và lấy thành 2 cái nha shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "hoa.tran", "action": "update", "item": "Q01", "size": "28", "qty": 2, "newItem": null }
+    ],
+    "note": "Cập nhật đồng thời size 28 và số lượng 2 cho Q01"
+  },
+  {
+    "id": "c31",
+    "tag": "cancel",
+    "featured": "V03",
+    "existingOrders": {
+      "lan.nguyen": [
+        { "item": "V03", "size": "M", "qty": 1 },
+        { "item": "T01", "size": null, "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "lan.nguyen", "text": "thôi hủy đơn nha shop ơi" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "lan.nguyen", "action": "cancel", "item": null }
+    ],
+    "note": "Hủy toàn bộ đơn hàng nên item là null"
+  },
+  {
+    "id": "c32",
+    "tag": "cancel",
+    "featured": "A01",
+    "existingOrders": {
+      "tuan99": [
+        { "item": "A01", "size": "L", "qty": 1 },
+        { "item": "Q01", "size": "30", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "tuan99", "text": "bỏ cái áo thun đen nha shop, mình giữ lại quần" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "tuan99", "action": "cancel", "item": "A01" }
+    ],
+    "note": "Chỉ hủy riêng áo thun đen A01 trong đơn có nhiều món"
+  },
+  {
+    "id": "c33",
+    "tag": "cancel",
+    "featured": "K01",
+    "existingOrders": {
+      "nhi_dang": [
+        { "item": "V03", "size": "S", "qty": 1 },
+        { "item": "K01", "size": null, "qty": 2 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "nhi_dang", "text": "hủy giúp em kẹp tóc K01 nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "nhi_dang", "action": "cancel", "item": "K01" }
+    ],
+    "note": "Hủy đúng mã K01 theo yêu cầu của khách"
+  },
+  {
+    "id": "c34",
+    "tag": "cancel",
+    "featured": "A02",
+    "existingOrders": {
+      "huong_le": [
+        { "item": "A02", "size": "S", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "huong_le", "text": "xin lỗi shop chị đổi ý không lấy áo sơ mi trắng nữa nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "huong_le", "action": "cancel", "item": "A02" }
+    ],
+    "note": "Khách chỉ định hủy món A02"
+  },
+  {
+    "id": "c35",
+    "tag": "cancel",
+    "featured": "V05",
+    "existingOrders": {
+      "trang.do": [
+        { "item": "V05", "size": "M", "qty": 1 },
+        { "item": "T01", "size": null, "qty": 2 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "trang.do", "text": "hủy hết toàn bộ giúp mình nhé" },
+      { "id": "m2", "buyer": "khang.truong", "text": "váy xinh quá shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "trang.do", "action": "cancel", "item": null }
+    ],
+    "note": "Hủy toàn bộ đơn của trang.do (item null); bình luận khen ở m2 bị bỏ qua"
+  },
+  {
+    "id": "c36",
+    "tag": "multi",
+    "featured": "V03",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "lan.nguyen", "text": "cho em 1 váy V03 size M với 1 túi tote T01 nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "lan.nguyen", "action": "create", "item": "V03", "size": "M", "qty": 1 },
+      { "commentId": "m1", "buyer": "lan.nguyen", "action": "create", "item": "T01", "size": null, "qty": 1 }
+    ],
+    "note": "Một bình luận đặt hai sản phẩm khác nhau tạo ra hai hành động create"
+  },
+  {
+    "id": "c37",
+    "tag": "multi",
+    "featured": "A02",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "mai.phan", "text": "chốt 1 áo sơ mi A02 size S và 1 áo sơ mi A02 size M nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "mai.phan", "action": "create", "item": "A02", "size": "S", "qty": 1 },
+      { "commentId": "m1", "buyer": "mai.phan", "action": "create", "item": "A02", "size": "M", "qty": 1 }
+    ],
+    "note": "Một bình luận đặt hai size khác nhau của cùng sản phẩm A02"
+  },
+  {
+    "id": "c38",
+    "tag": "multi",
+    "featured": "Q01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "hoa.tran", "text": "lấy Q01 size 26 nha" },
+      { "id": "m2", "buyer": "minh_t", "text": "chào shop nha" },
+      { "id": "m3", "buyer": "duc_hoang", "text": "cho mình 1 áo thun đen A01 XL" },
+      { "id": "m4", "buyer": "yen.ngo", "text": "chốt 2 kẹp tóc K01" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "hoa.tran", "action": "create", "item": "Q01", "size": "26", "qty": 1 },
+      { "commentId": "m3", "buyer": "duc_hoang", "action": "create", "item": "A01", "size": "XL", "qty": 1 },
+      { "commentId": "m4", "buyer": "yen.ngo", "action": "create", "item": "K01", "size": null, "qty": 2 }
+    ],
+    "note": "Nhiều khách bình luận trong cùng lô, có xen kẽ bình luận chào hỏi không tạo đơn"
+  },
+  {
+    "id": "c39",
+    "tag": "multi",
+    "featured": "A01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "tuan99", "text": "1 áo thun đen L và 3 kẹp tóc ngọc trai nhé" },
+      { "id": "m2", "buyer": "tuan99", "text": "lấy thêm 1 túi tote canvas nữa shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "tuan99", "action": "create", "item": "A01", "size": "L", "qty": 1 },
+      { "commentId": "m1", "buyer": "tuan99", "action": "create", "item": "K01", "size": null, "qty": 3 },
+      { "commentId": "m2", "buyer": "tuan99", "action": "create", "item": "T01", "size": null, "qty": 1 }
+    ],
+    "note": "Một khách gửi 2 bình luận đặt tổng cộng 3 mã hàng khác nhau"
+  },
+  {
+    "id": "c40",
+    "tag": "multi",
+    "featured": "V05",
+    "existingOrders": {
+      "thuy.vu": [
+        { "item": "V03", "size": "M", "qty": 1 }
+      ]
+    },
+    "comments": [
+      { "id": "m1", "buyer": "thuy.vu", "text": "đổi V03 của em sang size L nhé" },
+      { "id": "m2", "buyer": "quynh_nhu", "text": "chốt cái đang live size S ạ" },
+      { "id": "m3", "buyer": "dat.ly", "text": "quần Q01 có những size nào vậy shop?" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "thuy.vu", "action": "update", "item": "V03", "size": "L", "qty": null, "newItem": null },
+      { "commentId": "m2", "buyer": "quynh_nhu", "action": "create", "item": "V05", "size": "S", "qty": 1 },
+      { "commentId": "m3", "buyer": "dat.ly", "action": "ask" }
+    ],
+    "note": "Lô gồm nhiều khách với các hành động khác nhau: update, create theo ngữ cảnh và ask"
+  },
+  {
+    "id": "c41",
+    "tag": "ask",
+    "featured": "V03",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "my_hanh", "text": "váy hoa nhí V03 giá bao nhiêu vậy shop?" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "my_hanh", "action": "ask" }
+    ],
+    "note": "Khách hỏi giá sản phẩm nên trả về hành động ask"
+  },
+  {
+    "id": "c42",
+    "tag": "ask",
+    "featured": "A02",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "thu.ha", "text": "em cao 1m60 nặng 52kg mặc áo sơ mi trắng size nào vừa ạ?" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "thu.ha", "action": "ask" }
+    ],
+    "note": "Khách nhờ tư vấn size theo chiều cao cân nặng nên trả về ask"
+  },
+  {
+    "id": "c43",
+    "tag": "ask",
+    "featured": "V03",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "bao.chau", "text": "chốt em váy V03 size XL nha shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "bao.chau", "action": "ask" }
+    ],
+    "note": "V03 chỉ có size S, M, L nên khi khách đặt size XL không tồn tại phải hỏi/báo lại (ask)"
+  },
+  {
+    "id": "c44",
+    "tag": "ask",
+    "featured": "Q01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "oanh.nguyen", "text": "quần jean Q01 có size 31 không vậy chị?" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "oanh.nguyen", "action": "ask" }
+    ],
+    "note": "Khách hỏi về size 31 của Q01 (chỉ có 26-30) nên trả về ask"
+  },
+  {
+    "id": "c45",
+    "tag": "ambiguous",
+    "featured": "V03",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "hien.tran", "text": "chốt váy V03 nha shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "hien.tran", "action": "ask" }
+    ],
+    "note": "Sản phẩm V03 có nhiều size nhưng khách chưa chọn size nên phải hỏi lại (ask)"
+  },
+  {
+    "id": "c46",
+    "tag": "ambiguous",
+    "featured": "Q01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "khang.truong", "text": "lấy 1 quần jean ống rộng nhé" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "khang.truong", "action": "ask" }
+    ],
+    "note": "Đặt Q01 nhưng thiếu size (26..30) nên trả về ask"
+  },
+  {
+    "id": "c47",
+    "tag": "ambiguous",
+    "featured": "A02",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "ngoc.anh", "text": "cho mình 2 cái áo đang live nha" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "ngoc.anh", "action": "ask" }
+    ],
+    "note": "Áo sơ mi A02 đang live có các size S, M, L nhưng khách không nói rõ size nên ask"
+  },
+  {
+    "id": "c48",
+    "tag": "noise",
+    "featured": "V05",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "vy.vo", "text": "váy đẹp quá shop ơi, mẫu mặc xinh xỉu" }
+    ],
+    "expected": [],
+    "note": "Bình luận khen ngợi thuần túy, không có ý định mua hàng nên không tạo hành động"
+  },
+  {
+    "id": "c49",
+    "tag": "noise",
+    "featured": "T01",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "thao.le", "text": "hello shop" },
+      { "id": "m2", "buyer": "nam.bui", "text": "chấm hóng live ạ ❤️" }
+    ],
+    "expected": [],
+    "note": "Các bình luận chào hỏi và tương tác không mang ý định đặt hàng"
+  },
+  {
+    "id": "c50",
+    "tag": "stock",
+    "featured": "V05",
+    "existingOrders": {},
+    "comments": [
+      { "id": "m1", "buyer": "huong_le", "text": "chốt 1 váy suông trắng V05 size L nha shop" }
+    ],
+    "expected": [
+      { "commentId": "m1", "buyer": "huong_le", "action": "create", "item": "V05", "size": "L", "qty": 1 }
+    ],
+    "note": "V05 size L hiện tồn kho bằng 0 nhưng AI vẫn xuất create; kiểm tra tồn kho do tầng rules xử lý sau"
+  }
+]

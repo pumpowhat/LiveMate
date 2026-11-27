@@ -1,0 +1,161 @@
+import type { Comment, CommentVerdict, Order } from "@livemate/shared";
+import { extractActions } from "./extract.ts";
+import { prefilter } from "./filter.ts";
+import type { BuyerRef, OrderGateway } from "./gateway.ts";
+import type { LlmClient } from "./llm.ts";
+import type { PromptOrderLine } from "./prompt.ts";
+import { createResolver, type Operation } from "./rules.ts";
+
+/** Đầu ra của pipeline — lớp tích hợp (Socket.IO, Facebook) lắng nghe các callback này. */
+export interface PipelineSink {
+  onVerdict(sessionId: string, commentId: string, verdict: CommentVerdict, orderId?: string): void;
+  onOrder(sessionId: string, order: Order, created: boolean, comment: Comment): void;
+  /** Trả lời người mua: Facebook -> reply bình luận; phòng live -> reply:new. */
+  onReply(sessionId: string, comment: Comment, text: string): void;
+  /** Đơn bị người bán sửa tay — AI không tự đổi. */
+  onNeedsReview(sessionId: string, comment: Comment, op: Extract<Operation, { kind: "needs_review" }>): void;
+  onError(sessionId: string, err: unknown, comments: Comment[]): void;
+}
+
+export interface PipelineOptions {
+  /** Cửa sổ gom lô tính từ bình luận đầu tiên (ms). */
+  batchWindowMs?: number;
+  /** Lô đầy thì gửi ngay. */
+  maxBatchSize?: number;
+}
+
+/**
+ * Bình luận -> [1] lọc nhanh -> [2] gom lô -> [3] LLM -> [4] hành động -> [5] quy tắc -> đơn.
+ * Mỗi phiên xử lý TUẦN TỰ từng lô (một lần gọi LLM tại một thời điểm) để "chốt" luôn
+ * được ghi trước "đổi size" của cùng người.
+ */
+export class CommentPipeline {
+  private readonly windowMs: number;
+  private readonly maxBatch: number;
+  private readonly pending = new Map<string, { comments: Comment[]; timer: NodeJS.Timeout | null }>();
+  private readonly chains = new Map<string, Promise<void>>();
+
+  constructor(
+    private readonly llm: LlmClient,
+    private readonly gateway: OrderGateway,
+    private readonly sink: PipelineSink,
+    opts: PipelineOptions = {},
+  ) {
+    this.windowMs = opts.batchWindowMs ?? 1500;
+    this.maxBatch = opts.maxBatchSize ?? 20;
+  }
+
+  /** Nhận bình luận mới. Trả về ngay; kết quả đến qua sink. */
+  async push(comment: Comment): Promise<void> {
+    const ctx = await this.gateway.getSessionContext(comment.sessionId);
+    const orders = await this.gateway.getOpenOrders(comment.sessionId, [comment.buyerExternalId]);
+    const f = prefilter(comment.text, {
+      productCodes: ctx.catalog.map((p) => p.code),
+      buyerHasOrder: orders.has(comment.buyerExternalId),
+    });
+    if (!f.pass) {
+      this.sink.onVerdict(comment.sessionId, comment.id, "ignored");
+      return;
+    }
+    this.sink.onVerdict(comment.sessionId, comment.id, "queued");
+
+    let slot = this.pending.get(comment.sessionId);
+    if (!slot) {
+      slot = { comments: [], timer: null };
+      this.pending.set(comment.sessionId, slot);
+    }
+    slot.comments.push(comment);
+    if (slot.comments.length >= this.maxBatch) this.flush(comment.sessionId);
+    else slot.timer ??= setTimeout(() => this.flush(comment.sessionId), this.windowMs);
+  }
+
+  /** Gửi lô hiện tại của phiên vào hàng đợi xử lý. */
+  flush(sessionId: string): Promise<void> {
+    const slot = this.pending.get(sessionId);
+    if (slot) {
+      this.pending.delete(sessionId);
+      if (slot.timer) clearTimeout(slot.timer);
+    }
+    const batch = slot?.comments ?? [];
+    const prev = this.chains.get(sessionId) ?? Promise.resolve();
+    const next = prev.then(() => (batch.length ? this.processBatch(sessionId, batch) : undefined));
+    this.chains.set(sessionId, next);
+    return next;
+  }
+
+  /** Chờ mọi lô của phiên xử lý xong (dùng khi kết thúc live và trong test). */
+  async drain(sessionId: string): Promise<void> {
+    await this.flush(sessionId);
+  }
+
+  private async processBatch(sessionId: string, batch: Comment[]): Promise<void> {
+    try {
+      const ctx = await this.gateway.getSessionContext(sessionId);
+      const buyerIds = [...new Set(batch.map((c) => c.buyerExternalId))];
+      const openOrders = await this.gateway.getOpenOrders(sessionId, buyerIds);
+      const codeOf = new Map(ctx.catalog.map((p) => [p.id, p.code]));
+
+      const orders: Record<string, PromptOrderLine[]> = {};
+      for (const [buyer, o] of openOrders) {
+        orders[buyer] = o.items.map((i) => ({ item: codeOf.get(i.productId) ?? i.productCode, size: i.size, qty: i.qty }));
+      }
+      const { actions } = await extractActions(this.llm, {
+        catalog: ctx.catalog,
+        featured: ctx.catalog.find((p) => p.id === ctx.session.featuredProductId)?.code ?? null,
+        previouslyFeatured: ctx.previouslyFeatured,
+        orders,
+        comments: batch.map((c) => ({ id: c.id, buyer: c.buyerExternalId, name: c.buyerName, text: c.text })),
+      });
+
+      const byId = new Map(batch.map((c) => [c.id, c]));
+      const handled = new Set<string>();
+      const resolver = createResolver(ctx.catalog, openOrders);
+
+      for (const action of actions) {
+        const comment = byId.get(action.commentId)!;
+        handled.add(comment.id);
+        for (const op of resolver.resolve(action)) {
+          const order = await this.execute(sessionId, comment, op);
+          if (order) resolver.setOrder(comment.buyerExternalId, order);
+        }
+      }
+      for (const c of batch) if (!handled.has(c.id)) this.sink.onVerdict(sessionId, c.id, "unparsed");
+    } catch (err) {
+      for (const c of batch) this.sink.onVerdict(sessionId, c.id, "unparsed");
+      this.sink.onError(sessionId, err, batch);
+    }
+  }
+
+  private async execute(sessionId: string, comment: Comment, op: Operation): Promise<Order | null> {
+    const buyer: BuyerRef = { externalId: comment.buyerExternalId, name: comment.buyerName, source: comment.source };
+    switch (op.kind) {
+      case "add": {
+        const before = await this.gateway.getOpenOrders(sessionId, [buyer.externalId]);
+        const order = await this.gateway.addItem(sessionId, buyer, op.line, comment.id);
+        this.sink.onOrder(sessionId, order, !before.has(buyer.externalId), comment);
+        this.sink.onVerdict(sessionId, comment.id, "create", order.id);
+        return order;
+      }
+      case "update": {
+        const order = await this.gateway.updateItem(op.orderId, op.line, op.patch, comment.id);
+        this.sink.onOrder(sessionId, order, false, comment);
+        this.sink.onVerdict(sessionId, comment.id, "update", order.id);
+        return order;
+      }
+      case "remove": {
+        const order = await this.gateway.removeItem(op.orderId, op.line, comment.id);
+        this.sink.onOrder(sessionId, order, false, comment);
+        this.sink.onVerdict(sessionId, comment.id, "cancel", order.id);
+        return order;
+      }
+      case "reply":
+        this.sink.onReply(sessionId, comment, op.text);
+        this.sink.onVerdict(sessionId, comment.id, "ask");
+        return null;
+      case "needs_review":
+        this.sink.onNeedsReview(sessionId, comment, op);
+        this.sink.onVerdict(sessionId, comment.id, "unparsed", op.orderId);
+        return null;
+    }
+  }
+}
