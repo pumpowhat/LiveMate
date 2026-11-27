@@ -17,6 +17,8 @@ interface State {
   entry: ResilientEntry;
   calls: number[]; // thời điểm gọi trong 60s gần nhất
   cooldownUntil: number;
+  /** Số lần "unavailable" liên tiếp — nghỉ lâu dần để khỏi tốn vài giây chờ 503 mỗi 30s. */
+  failures: number;
 }
 
 export interface ResilientOptions {
@@ -38,7 +40,7 @@ export class ResilientLlm implements LlmClient {
 
   constructor(entries: ResilientEntry[], opts: ResilientOptions = {}) {
     if (!entries.length) throw new Error("ResilientLlm cần ít nhất một client");
-    this.states = entries.map((entry) => ({ entry, calls: [], cooldownUntil: 0 }));
+    this.states = entries.map((entry) => ({ entry, calls: [], cooldownUntil: 0, failures: 0 }));
     this.name = entries.map((e) => e.client.name).join(" → ");
     this.maxWaitMs = opts.maxWaitMs ?? 25_000;
     this.now = opts.now ?? Date.now;
@@ -50,7 +52,13 @@ export class ResilientLlm implements LlmClient {
   private readyAt(s: State, t: number): number {
     s.calls = s.calls.filter((c) => t - c < MINUTE);
     let at = Math.max(t, s.cooldownUntil);
-    if (s.entry.rpm > 0 && s.calls.length >= s.entry.rpm) at = Math.max(at, s.calls[0]! + MINUTE);
+    if (s.entry.rpm > 0) {
+      if (s.calls.length >= s.entry.rpm) at = Math.max(at, s.calls[0]! + MINUTE);
+      // Giãn đều: tối thiểu 60/rpm giây giữa hai lần gọi. Không giãn thì quota bị
+      // dùng hết trong vài chục giây đầu rồi đứng chờ cả phút (độ trễ p95 ~35s khi load test).
+      const last = s.calls[s.calls.length - 1];
+      if (last !== undefined) at = Math.max(at, last + MINUTE / s.entry.rpm);
+    }
     return at;
   }
 
@@ -76,12 +84,19 @@ export class ResilientLlm implements LlmClient {
       ready.calls.push(t);
       tried.add(ready);
       try {
-        return await ready.entry.client.completeJson(system, user, opts);
+        const out = await ready.entry.client.completeJson(system, user, opts);
+        ready.failures = 0;
+        return out;
       } catch (err) {
         lastError = err;
         const kind = classify(err);
         if (kind === "fatal") throw err;
-        const pause = kind === "rate_limit" ? (retryDelayMs(err) ?? 20_000) : 30_000;
+        let pause: number;
+        if (kind === "rate_limit") pause = retryDelayMs(err) ?? 20_000;
+        else {
+          ready.failures++;
+          pause = Math.min(30_000 * 2 ** (ready.failures - 1), 10 * MINUTE); // 30s, 60s, 120s ... 10 phút
+        }
         ready.cooldownUntil = this.now() + pause;
         this.log(`${ready.entry.client.name}: ${kind}, nghỉ ${Math.round(pause / 1000)}s`);
       }
