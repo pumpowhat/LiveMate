@@ -270,14 +270,32 @@ API dev của server: `GET /health`, `GET /api/dev/state`, `POST /api/dev/featur
 
 ## 14. Tài sản có sẵn, thư viện và công cụ AI đã dùng
 
-*(Bắt buộc khai báo theo thể lệ — cập nhật trong quá trình làm.)*
+*(Bắt buộc khai báo theo thể lệ — cập nhật khi thêm thư viện/công cụ.)*
 
 | Loại | Tên | Mục đích |
 |---|---|---|
-| Thư viện mã nguồn mở | | |
-| Dịch vụ / API | | |
-| Công cụ AI hỗ trợ phát triển | | |
-| Tài sản có sẵn (hình ảnh, video mẫu…) | | |
+| Thư viện mã nguồn mở | `dotenv` (BSD-2-Clause) | Đọc biến môi trường từ file `.env` cho backend |
+| Thư viện mã nguồn mở | `express` (MIT) | HTTP server và REST API cho `@livemate/server` |
+| Thư viện mã nguồn mở | `openai` (Apache-2.0) | SDK gọi LLM qua endpoint tương thích OpenAI (Gemini, OpenAI) |
+| Thư viện mã nguồn mở | `qrcode` (MIT) | Tạo ảnh mã QR thanh toán VietQR phía backend |
+| Thư viện mã nguồn mở | `socket.io` (MIT) | Giao tiếp thời gian thực giữa server, màn hình người bán và phòng live |
+| Thư viện mã nguồn mở | `zod` (MIT) | Định nghĩa và kiểm tra schema dữ liệu dùng chung (`@livemate/shared`, `@livemate/server`) |
+| Thư viện mã nguồn mở | `TypeScript` (Apache-2.0) | Kiểm tra kiểu tĩnh cho `@livemate/server` và `@livemate/shared` |
+| Thư viện mã nguồn mở | `tsx` (MIT) | Chạy trực tiếp mã TypeScript cho dev server, smoke test và eval |
+| Thư viện mã nguồn mở | `Vitest` (MIT) | Chạy unit test cho server, shared và extension |
+| Thư viện mã nguồn mở | `jsdom` (MIT) | Giả lập DOM để kiểm thử Chrome extension đọc bình luận |
+| Thư viện mã nguồn mở | `pnpm` (MIT) | Quản lý gói và monorepo workspace |
+| Dịch vụ / API | Google Gemini API | Phân tích bình luận và trích xuất đơn hàng (`gemini-3.5-flash-lite` chính, `gemini-3.5-flash` dự phòng, qua endpoint tương thích OpenAI) |
+| Dịch vụ / API | Facebook Graph API | Đọc bình luận Fanpage, trả lời bình luận kèm link đơn và xác thực Facebook Login |
+| Dịch vụ / API | Chuẩn VietQR / NAPAS 247 (EMVCo) | Sinh chuỗi QR chuyển khoản theo từng đơn — tự cài đặt ở backend, không dùng dịch vụ ngoài |
+| Dịch vụ / API | Railway | Hosting backend và PostgreSQL (dự kiến) |
+| Dịch vụ / API | Vercel | Hosting frontend (dự kiến) |
+| Dịch vụ / API | GitHub | Lưu trữ mã nguồn và phối hợp nhóm |
+| Công cụ AI hỗ trợ phát triển | Claude Code (Anthropic, Claude Opus 5.5) | Thiết kế kiến trúc, pipeline AI và review code |
+| Công cụ AI hỗ trợ phát triển | OpenAI Codex CLI (`gpt-6.2-sol`) | Phát triển module VietQR, Facebook, cảnh báo rủi ro, extension và test |
+| Công cụ AI hỗ trợ phát triển | Google Antigravity CLI `agy` (Gemini 4 Hydrogen) | Scaffold monorepo, tạo bộ 50 bình luận test và viết test phụ |
+| Tài sản có sẵn | Danh mục hàng mẫu (`apps/server/fixtures/catalog.json`) | Dữ liệu sản phẩm mẫu phục vụ demo và kiểm thử — tự tạo, dữ liệu giả |
+| Tài sản có sẵn | Bộ 50 bình luận test (`apps/server/fixtures/eval-cases.json`) | Bộ dữ liệu đánh giá độ chính xác AI — sinh bằng AI, nhóm đã rà soát |
 
 ## 15. Thành viên
 
