@@ -39,6 +39,8 @@ export interface AppConfig {
    * CHỈ dùng khi chạy local. index.ts bật khi NODE_ENV !== "production" (hoặc DEV_ROUTES=1).
    */
   devRoutes?: boolean;
+  /** Gom lô: cửa sổ (ms) và số bình luận tối đa mỗi lần gọi LLM. */
+  pipeline?: { batchWindowMs?: number; maxBatchSize?: number };
 }
 
 /**
@@ -109,7 +111,7 @@ export function createApp(cfg: AppConfig) {
     batches.push(m);
     if (batches.length > 1000) batches.shift();
   };
-  const pipeline = new CommentPipeline(cfg.llm, gateway, withRisk);
+  const pipeline = new CommentPipeline(cfg.llm, gateway, withRisk, cfg.pipeline ?? {});
 
   /** Mọi nguồn bình luận đi qua đây: phát cho phòng rồi đưa vào pipeline. */
   const ingest = (comment: Comment) => {

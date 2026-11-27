@@ -16,6 +16,11 @@ const { httpServer } = createApp({
   buyerHistorySeed: { u_boom: { boomed: 2, completed: 1 } },
   ...(env.INGEST_KEY ? { ingestKey: env.INGEST_KEY } : {}),
   devRoutes: env.NODE_ENV !== "production" || env.DEV_ROUTES === "1",
+  // Gói miễn phí Gemini chỉ 15 request/phút: lô lớn (tới 40) để theo kịp khi live đông.
+  pipeline: {
+    batchWindowMs: Number(env.PIPELINE_BATCH_WINDOW_MS ?? 1500),
+    maxBatchSize: Number(env.PIPELINE_MAX_BATCH ?? 40),
+  },
   facebook: env.FB_GRAPH_VERSION
     ? {
         graphVersion: env.FB_GRAPH_VERSION,
