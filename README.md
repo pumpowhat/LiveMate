@@ -244,21 +244,27 @@ packages/
 
 ## 13. Cài đặt và chạy
 
-*(Sẽ cập nhật khi có mã nguồn.)*
+Yêu cầu: Node 24 (`.nvmrc`), pnpm (`corepack enable pnpm`).
 
 ```bash
-# Backend
-cd backend
-cp .env.example .env   # điền LLM API key, database URL
-# lệnh cài đặt và chạy
+pnpm install
+cp apps/server/.env.example apps/server/.env   # điền LLM key, VietQR, Facebook
 
-# Frontend
-cd frontend
-# lệnh cài đặt và chạy
+# Chạy server (phòng DEMO in-memory). Chưa có LLM key thì dùng LLM_PROVIDER=fake
+pnpm dev:server
 
-# Extension (tùy chọn)
-# Chrome → chrome://extensions → bật Developer mode → Load unpacked → chọn thư mục extension/
+# Kiểm tra
+pnpm test                                               # unit test
+pnpm --filter @livemate/server exec tsx scripts/smoke.ts  # chạy thử toàn luồng với server đang chạy
+pnpm --filter @livemate/server eval                     # so sánh LLM trên 50 bình luận mẫu
+
+# Thử Graph API: Facebook có trả tên người bình luận không?
+pnpm --filter @livemate/server exec tsx scripts/fb-spike.ts <post-or-live-video-id>
+pnpm --filter @livemate/server exec tsx scripts/fb-spike.ts --live <page-id>
 ```
+
+API dev của server: `GET /health`, `GET /api/dev/state`, `POST /api/dev/featured {code}`,
+`POST /api/dev/facebook/watch {objectId}`, `GET /api/orders/:token/qr.png`.
 
 ## 14. Tài sản có sẵn, thư viện và công cụ AI đã dùng
 

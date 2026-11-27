@@ -9,9 +9,14 @@ export type Operation =
   | { kind: "add"; commentId: string; buyer: string; line: LineRef & { qty: number } }
   | { kind: "update"; commentId: string; buyer: string; orderId: string; line: LineRef; patch: { productId?: string; size?: string | null; qty?: number } }
   | { kind: "remove"; commentId: string; buyer: string; orderId: string; line: LineRef | null }
-  | { kind: "reply"; commentId: string; buyer: string; text: string; reason: ReplyReason }
+  | { kind: "reply"; commentId: string; buyer: string; text: string; reason: ReplyReason; meta?: ReplyMeta }
   /** Đơn đã được người bán sửa tay: AI không tự đổi, chỉ báo người bán. */
   | { kind: "needs_review"; commentId: string; buyer: string; orderId: string; action: AiAction };
+
+export interface ReplyMeta {
+  productCode: string;
+  size: string | null;
+}
 
 export type ReplyReason = "ask" | "unknown_item" | "invalid_size" | "missing_size" | "out_of_stock" | "no_order" | "not_in_order";
 
@@ -36,8 +41,8 @@ export function createResolver(catalog: Product[], initialOrders: Map<string, Or
     return -1; // ok
   };
   let ops: Operation[] = [];
-  const reply = (a: AiAction, text: string, reason: ReplyReason) =>
-    ops.push({ kind: "reply", commentId: a.commentId, buyer: a.buyer, text, reason });
+  const reply = (a: AiAction, text: string, reason: ReplyReason, meta?: ReplyMeta) =>
+    ops.push({ kind: "reply", commentId: a.commentId, buyer: a.buyer, text, reason, ...(meta ? { meta } : {}) });
 
   /** Chuẩn hóa size theo món; trả về undefined nếu size không hợp lệ. */
   const normSize = (p: Product, size: string | null): string | null | undefined => {
@@ -97,7 +102,7 @@ export function createResolver(catalog: Product[], initialOrders: Map<string, Or
       }
       const left = take(p, size, a.qty);
       if (left >= 0) {
-        reply(a, left === 0 ? `${p.code}${size ? ` size ${size}` : ""} hết hàng rồi ạ.` : `${p.code}${size ? ` size ${size}` : ""} chỉ còn ${left} cái ạ.`, "out_of_stock");
+        reply(a, left === 0 ? `${p.code}${size ? ` size ${size}` : ""} hết hàng rồi ạ.` : `${p.code}${size ? ` size ${size}` : ""} chỉ còn ${left} cái ạ.`, "out_of_stock", { productCode: p.code, size });
         return;
       }
       ops.push({ kind: "add", commentId: a.commentId, buyer: a.buyer, line: { productId: p.id, size, qty: a.qty } });
@@ -138,7 +143,7 @@ export function createResolver(catalog: Product[], initialOrders: Map<string, Or
     if (extra > 0) {
       const left = take(target, size, extra);
       if (left >= 0) {
-        reply(a, `${target.code}${size ? ` size ${size}` : ""} ${left === 0 ? "hết hàng rồi" : `chỉ còn ${left} cái`} ạ.`, "out_of_stock");
+        reply(a, `${target.code}${size ? ` size ${size}` : ""} ${left === 0 ? "hết hàng rồi" : `chỉ còn ${left} cái`} ạ.`, "out_of_stock", { productCode: target.code, size });
         return;
       }
     }

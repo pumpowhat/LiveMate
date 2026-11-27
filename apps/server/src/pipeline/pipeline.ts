@@ -4,14 +4,14 @@ import { prefilter } from "./filter.ts";
 import type { BuyerRef, OrderGateway } from "./gateway.ts";
 import type { LlmClient } from "./llm.ts";
 import type { PromptOrderLine } from "./prompt.ts";
-import { createResolver, type Operation } from "./rules.ts";
+import { createResolver, type Operation, type ReplyMeta, type ReplyReason } from "./rules.ts";
 
 /** Đầu ra của pipeline — lớp tích hợp (Socket.IO, Facebook) lắng nghe các callback này. */
 export interface PipelineSink {
   onVerdict(sessionId: string, commentId: string, verdict: CommentVerdict, orderId?: string): void;
   onOrder(sessionId: string, order: Order, created: boolean, comment: Comment): void;
   /** Trả lời người mua: Facebook -> reply bình luận; phòng live -> reply:new. */
-  onReply(sessionId: string, comment: Comment, text: string): void;
+  onReply(sessionId: string, comment: Comment, text: string, reason?: ReplyReason, meta?: ReplyMeta): void;
   /** Đơn bị người bán sửa tay — AI không tự đổi. */
   onNeedsReview(sessionId: string, comment: Comment, op: Extract<Operation, { kind: "needs_review" }>): void;
   onError(sessionId: string, err: unknown, comments: Comment[]): void;
@@ -149,7 +149,7 @@ export class CommentPipeline {
         return order;
       }
       case "reply":
-        this.sink.onReply(sessionId, comment, op.text);
+        this.sink.onReply(sessionId, comment, op.text, op.reason, op.meta);
         this.sink.onVerdict(sessionId, comment.id, "ask");
         return null;
       case "needs_review":

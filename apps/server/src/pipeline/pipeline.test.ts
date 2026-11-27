@@ -148,7 +148,7 @@ test("forwards an ask action's reply text to the sink", async () => {
   await pipeline.push(question);
   await pipeline.drain(session.id);
 
-  expect(sink.onReply.mock.calls).toEqual([[session.id, question, reply]]);
+  expect(sink.onReply.mock.calls).toEqual([[session.id, question, reply, "ask", undefined]]);
   expect(sink.onVerdict).toHaveBeenLastCalledWith(session.id, "c1", "ask");
   expect(sink.onOrder).not.toHaveBeenCalled();
 });
