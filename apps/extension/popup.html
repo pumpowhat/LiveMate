@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiveMate</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="selectors.js" defer></script>
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <h1>LiveMate</h1>
+    <label class="reading">
+      <input id="enabled" type="checkbox" role="switch" disabled>
+      Đang đọc
+    </label>
+  </header>
+
+  <main>
+    <dl class="stats" aria-label="Thống kê bình luận">
+      <div><dt>Đã gửi</dt><dd id="sent">0</dd></div>
+      <div><dt>Tiếp nhận</dt><dd id="accepted">0</dd></div>
+      <div><dt>Bị trùng</dt><dd id="duplicates">0</dd></div>
+    </dl>
+    <p class="last-sent">Lần gửi cuối <time id="last-sent-at">—</time></p>
+    <p id="last-error" class="error" role="status" hidden></p>
+
+    <form id="settings" novalidate>
+      <fieldset id="settings-fields" disabled>
+        <label for="server-url">Địa chỉ máy chủ</label>
+        <input id="server-url" type="url" placeholder="http://localhost:4000" spellcheck="false">
+
+        <label for="room-code">Mã phòng</label>
+        <input id="room-code" type="text" placeholder="DEMO" spellcheck="false">
+
+        <label for="ingest-key">Khóa nhận bình luận</label>
+        <input id="ingest-key" type="password" placeholder="Có thể để trống" autocomplete="off">
+
+        <div class="actions">
+          <button class="primary" id="save" type="submit">Lưu cài đặt</button>
+          <button id="health" type="button">Kiểm tra kết nối</button>
+        </div>
+      </fieldset>
+    </form>
+
+    <button id="pick" class="pick" type="button">Chọn khung bình luận</button>
+
+    <details>
+      <summary>Bộ chọn bình luận nâng cao</summary>
+      <form id="selectors">
+        <fieldset id="selector-fields" disabled>
+          <label for="platform">Nền tảng</label>
+          <select id="platform">
+            <option value="tiktok">TikTok Live</option>
+            <option value="facebook">Facebook Live</option>
+          </select>
+
+          <label for="item-selector">Bộ chọn dòng bình luận</label>
+          <input id="item-selector" type="text" spellcheck="false">
+
+          <label for="name-selector">Bộ chọn tên hiển thị</label>
+          <input id="name-selector" type="text" spellcheck="false">
+
+          <label for="text-selector">Bộ chọn nội dung</label>
+          <input id="text-selector" type="text" spellcheck="false">
+
+          <p class="hint">Để trống để dùng bộ chọn mặc định.</p>
+          <button type="submit">Lưu bộ chọn</button>
+        </fieldset>
+      </form>
+    </details>
+
+    <p id="status" class="feedback" role="status"></p>
+  </main>
+</body>
+</html>
