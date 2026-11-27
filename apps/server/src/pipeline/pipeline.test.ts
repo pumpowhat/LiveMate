@@ -129,13 +129,13 @@ test("reports an LLM error and marks the entire batch unparsed", async () => {
   expect(gateway.listOrders()).toEqual([]);
 });
 
-test("marks a comment unparsed when the LLM returns no action for it", async () => {
+test("marks a comment ignored when the LLM returns no action for it", async () => {
   const { pipeline, sink } = setup(new FakeLlm('{"actions":[]}'));
 
   await pipeline.push(comment("c1", "chốt V03 size M"));
   await pipeline.drain(session.id);
 
-  expect(sink.onVerdict.mock.calls).toEqual([[session.id, "c1", "queued"], [session.id, "c1", "unparsed"]]);
+  expect(sink.onVerdict.mock.calls).toEqual([[session.id, "c1", "queued"], [session.id, "c1", "ignored"]]);
   expect(sink.onError).not.toHaveBeenCalled();
 });
 

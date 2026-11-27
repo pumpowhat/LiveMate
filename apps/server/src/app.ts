@@ -9,7 +9,7 @@ import { createFacebookRouter } from "./facebook/routes.ts";
 import { InMemoryFacebookConnectionStore } from "./facebook/store.ts";
 import { InMemoryOrderGateway } from "./pipeline/memory-gateway.ts";
 import type { LlmClient } from "./pipeline/llm.ts";
-import { CommentPipeline, type PipelineSink } from "./pipeline/pipeline.ts";
+import { CommentPipeline, type BatchMetrics, type PipelineSink } from "./pipeline/pipeline.ts";
 import { InMemoryBuyerHistoryStore } from "./risk/history.ts";
 import { RiskEngine } from "./risk/engine.ts";
 import { vietQrPngBuffer } from "./payment/vietqr.ts";
@@ -102,6 +102,12 @@ export function createApp(cfg: AppConfig) {
       sink.onReply(sessionId, comment, text, reason, meta);
       if (reason === "out_of_stock" && meta) risk.onOutOfStock(sessionId, comment.buyerExternalId, meta.productCode, meta.size);
     },
+  };
+  // Số liệu lô gần nhất (cho /api/dev/metrics và load test).
+  const batches: BatchMetrics[] = [];
+  withRisk.onBatch = (_sid, m) => {
+    batches.push(m);
+    if (batches.length > 1000) batches.shift();
   };
   const pipeline = new CommentPipeline(cfg.llm, gateway, withRisk);
 
@@ -215,6 +221,29 @@ export function createApp(cfg: AppConfig) {
   });
 
   // Dev: xem nhanh trạng thái phiên DEMO.
+  app.get("/api/dev/metrics", (_req, res) => {
+    const pct = (xs: number[], p: number) => {
+      if (!xs.length) return 0;
+      const sorted = [...xs].sort((a, b) => a - b);
+      return Math.round(sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))]!);
+    };
+    const sizes = batches.map((b) => b.size);
+    res.json({
+      llm: cfg.llm.name,
+      batches: batches.length,
+      comments: sizes.reduce((a, b) => a + b, 0),
+      failedBatches: batches.filter((b) => !b.ok).length,
+      batchSize: { avg: sizes.length ? +(sizes.reduce((a, b) => a + b, 0) / sizes.length).toFixed(2) : 0, max: Math.max(0, ...sizes) },
+      llmMs: { p50: pct(batches.map((b) => b.llmMs), 50), p95: pct(batches.map((b) => b.llmMs), 95) },
+      waitMs: { p50: pct(batches.map((b) => b.oldestWaitMs), 50), p95: pct(batches.map((b) => b.oldestWaitMs), 95) },
+    });
+  });
+
+  app.post("/api/dev/metrics/reset", (_req, res) => {
+    batches.length = 0;
+    res.json({ ok: true });
+  });
+
   app.get("/api/dev/state", (_req, res) => {
     res.json({ session, catalog: cfg.catalog, orders: gateway.listOrders() });
   });
