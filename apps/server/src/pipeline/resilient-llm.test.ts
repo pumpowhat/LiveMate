@@ -101,7 +101,7 @@ describe("ResilientLlm", () => {
     expect(c2.calls).toBe(2);
   });
 
-  it("503 and timeout both fall back and put the client on 30s cooldown", async () => {
+  it("503 and timeout both fall back; first cooldown 30s, consecutive failure doubles it", async () => {
     let t = 0;
     const now = () => t;
     const sleep = async (ms: number) => {
@@ -109,7 +109,7 @@ describe("ResilientLlm", () => {
     };
 
     const c1 = makeClient("c1", [unavailable(), timeout(), "ok"]);
-    const c2 = makeClient("c2", ["ok", "ok", "ok", "ok"]);
+    const c2 = makeClient("c2", ["ok", "ok", "ok", "ok", "ok"]);
     const llm = new ResilientLlm(
       [
         { client: c1, rpm: 0 },
@@ -133,7 +133,12 @@ describe("ResilientLlm", () => {
     expect(await llm.completeJson("sys", "usr")).toBe('{"from":"c2"}');
     expect(c1.calls).toBe(2);
 
+    // Lỗi liên tiếp lần 2 -> nghỉ gấp đôi (60s): còn nghỉ ở t=60_000, hết nghỉ ở t=90_000
     t = 60_000;
+    expect(await llm.completeJson("sys", "usr")).toBe('{"from":"c2"}');
+    expect(c1.calls).toBe(2);
+
+    t = 90_000;
     expect(await llm.completeJson("sys", "usr")).toBe('{"from":"c1"}');
     expect(c1.calls).toBe(3);
   });
@@ -160,7 +165,7 @@ describe("ResilientLlm", () => {
     expect(c2.calls).toBe(0);
   });
 
-  it("rpm limit: single client with rpm 2 runs two calls immediately and third waits until t >= 60000", async () => {
+  it("rpm limit: rpm 2 spaces calls 30s apart (60s/rpm) instead of bursting", async () => {
     let t = 0;
     const now = () => t;
     const sleep = async (ms: number) => {
@@ -173,11 +178,25 @@ describe("ResilientLlm", () => {
     expect(await llm.completeJson("sys", "usr")).toBe('{"from":"c1"}');
     expect(t).toBe(0);
     expect(await llm.completeJson("sys", "usr")).toBe('{"from":"c1"}');
-    expect(t).toBe(0);
-
+    expect(t).toBeGreaterThanOrEqual(30_000);
+    expect(t).toBeLessThan(31_000);
     expect(await llm.completeJson("sys", "usr")).toBe('{"from":"c1"}');
     expect(t).toBeGreaterThanOrEqual(60_000);
     expect(c1.calls).toBe(3);
+  });
+
+  it("pacing prefers another ready client over waiting", async () => {
+    let t = 0;
+    const now = () => t;
+    const sleep = async (ms: number) => {
+      t += ms;
+    };
+    const c1 = makeClient("c1", ["ok", "ok"]);
+    const c2 = makeClient("c2", ["ok"]);
+    const llm = new ResilientLlm([{ client: c1, rpm: 15 }, { client: c2, rpm: 15 }], { now, sleep, log: () => {} });
+    expect(await llm.completeJson("sys", "usr")).toBe('{"from":"c1"}');
+    expect(await llm.completeJson("sys", "usr")).toBe('{"from":"c2"}');
+    expect(t).toBe(0);
   });
 
   it("all clients cooling down longer than maxWaitMs rejects with 'Không còn LLM nào rảnh'", async () => {
@@ -217,5 +236,28 @@ describe("retryDelayMs", () => {
     expect(retryDelayMs(rateLimit(17))).toBe(17500);
     expect(retryDelayMs(new Error('{"retryDelay":"0.5s"}'))).toBe(1000);
     expect(retryDelayMs(new Error("no retry delay here"))).toBeUndefined();
+  });
+});
+
+describe("ResilientLlm unavailable backoff", () => {
+  it("doubles the cooldown on consecutive 503s and resets after a success", async () => {
+    let t = 0;
+    const now = () => t;
+    const sleep = async (ms: number) => {
+      t += ms;
+    };
+    const flaky = makeClient("flaky", [unavailable(), unavailable(), "ok", unavailable()]);
+    const backup = makeClient("backup", ["ok", "ok", "ok", "ok"]);
+    const llm = new ResilientLlm([{ client: flaky, rpm: 0 }, { client: backup, rpm: 0 }], { now, sleep, log: () => {} });
+
+    await llm.completeJson("s", "u"); // flaky 503 #1 -> nghỉ 30s, backup trả lời
+    t = 31_000;
+    await llm.completeJson("s", "u"); // flaky 503 #2 -> nghỉ 60s
+    t = 31_000 + 59_000;
+    expect(await llm.completeJson("s", "u")).toBe('{"from":"backup"}'); // vẫn nghỉ
+    t = 31_000 + 61_000;
+    expect(await llm.completeJson("s", "u")).toBe('{"from":"flaky"}'); // hết nghỉ, thành công -> reset
+    await llm.completeJson("s", "u"); // flaky 503 lần nữa -> lại 30s (đã reset)
+    expect(flaky.calls).toBe(4);
   });
 });
