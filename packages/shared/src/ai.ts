@@ -36,11 +36,22 @@ export const CancelAction = z.object({
   item: z.string().nullable(),
 });
 
-/** Câu hỏi hoặc câu mơ hồ: không đổi đơn, chỉ trả lời khách. */
+/**
+ * Câu hỏi hoặc câu mơ hồ: không đổi đơn, chỉ trả lời khách.
+ * Với lý do về size / mã món, hệ thống tự viết câu trả lời từ danh mục (không tin
+ * dữ kiện do LLM viết) và tự ghi đơn nếu thật ra size hợp lệ.
+ */
+export const AskReason = z.enum(["missing_size", "invalid_size", "unknown_item", "question", "unclear"]);
+export type AskReason = z.infer<typeof AskReason>;
+
 export const AskAction = z.object({
   ...base,
   action: z.literal("ask"),
   reply: z.string(),
+  reason: AskReason.default("question"),
+  item: z.string().nullable().default(null),
+  size: z.string().nullable().default(null),
+  qty: z.number().int().positive().nullable().default(null),
 });
 
 export const AiAction = z.discriminatedUnion("action", [CreateAction, UpdateAction, CancelAction, AskAction]);

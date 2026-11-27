@@ -35,8 +35,12 @@ Hành động:
   Trường: item (mã món đang có trong đơn), size (size mới hoặc null nếu không đổi), qty (số lượng mới TỔNG, hoặc null), newItem (mã món mới hoặc null).
   "thêm 1 cái nữa" khi đang có 1 cái => qty = 2.
 - "cancel": hủy một món (item = mã món) hoặc cả đơn (item = null).
-- "ask": câu hỏi, hoặc câu đặt hàng chưa đủ thông tin (thiếu size với món có size, không rõ món nào, size không tồn tại).
-  Trường reply: câu trả lời ngắn, lịch sự, xưng "shop", gọi khách là "bạn", dựa trên danh mục.
+- "ask": câu hỏi, hoặc câu đặt hàng chưa đủ thông tin.
+  Trường reason: "missing_size" (món có size nhưng khách không nói size), "invalid_size" (size khách nói không có trong danh mục),
+  "unknown_item" (mã/món không có), "question" (hỏi giá, chất liệu, tư vấn...), "unclear" (không hiểu khách muốn gì).
+  Trường item, size, qty: món / size / số lượng khách nhắc tới (null nếu không có).
+  Trường reply: câu trả lời ngắn, lịch sự, xưng "shop", gọi khách là "bạn", CHỈ dựa trên danh mục.
+  Trước khi dùng "invalid_size", hãy đối chiếu lại danh sách size của món trong DANH MỤC.
 
 Quy tắc:
 - item luôn là MÃ MÓN trong danh mục (ví dụ "V03"). Không bịa mã.
@@ -45,6 +49,9 @@ Quy tắc:
 - Size phải đúng một trong các size của món (viết hoa như danh mục). Món không có size => size = null.
 - Không ghi số lượng => qty = 1. Số bằng chữ ("hai cái") => số.
 - Nếu người mua đã có món đó trong đơn và nói đổi/sửa => "update", không tạo đơn mới.
+- "lấy thêm" / "thêm" một món ĐÃ CÓ trong đơn:
+  + cùng size (hoặc không nói size) => "update" qty = tổng mới;
+  + KHÁC size => "create" một dòng mới với size đó (giữ nguyên dòng cũ). Chỉ "update" size khi khách nói "đổi".
 - Không chắc chắn => "ask" thay vì đoán.
 - Một bình luận có thể sinh nhiều hành động (ví dụ mua hai món). Bình luận chỉ khen/chào => không có hành động.
 - Không kiểm tra tồn kho (hệ thống tự kiểm tra).
@@ -56,7 +63,7 @@ Ví dụ:
  {"commentId":"m1","buyer":"lan.nguyen","action":"create","item":"V03","size":"M","qty":1},
  {"commentId":"m2","buyer":"lan.nguyen","action":"update","item":"V03","size":"L","qty":null,"newItem":null},
  {"commentId":"m3","buyer":"minh_t","action":"cancel","item":null},
- {"commentId":"m4","buyer":"hoa.tran","action":"ask","reply":"V03 chỉ có size S/M/L ạ"}
+ {"commentId":"m4","buyer":"hoa.tran","action":"ask","reason":"invalid_size","item":"V03","size":"XL","qty":null,"reply":"V03 chỉ có size S/M/L ạ"}
 ]}`;
 
 function formatProduct(p: Product): string {

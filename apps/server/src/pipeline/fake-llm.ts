@@ -14,7 +14,7 @@ export class FakeRegexLlm implements LlmClient {
     const featured = user.match(/^ĐANG GIỚI THIỆU: ([A-Z]\d{2})/m)?.[1] ?? null;
     const actions: unknown[] = [];
 
-    for (const m of user.matchAll(/^\[([^\]]+)\] ([^:]+): (.*)$/gm)) {
+    for (const m of user.matchAll(/^\[([^\]]+)\] (.+?): (.*)$/gm)) {
       const [, commentId, buyer, raw] = m as unknown as [string, string, string, string];
       const t = fold(raw);
       const code = codes.find((c) => new RegExp(`\\b${c.toLowerCase()}\\b`).test(t)) ?? featured;

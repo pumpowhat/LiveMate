@@ -59,6 +59,24 @@ export function createResolver(catalog: Product[], initialOrders: Map<string, Or
 
   function resolveOne(a: AiAction): void {
     if (a.action === "ask") {
+      const p = a.item ? byCode.get(a.item.toUpperCase()) : undefined;
+      if (p && (a.reason === "invalid_size" || a.reason === "missing_size" || a.reason === "unknown_item")) {
+        // Không tin dữ kiện LLM tự viết về size / mã món: viết lại từ danh mục.
+        const size = normSize(p, a.size);
+        if (a.reason === "invalid_size" && a.size !== null && size !== undefined) {
+          // LLM bảo size không có nhưng danh mục có -> ghi đơn như khách yêu cầu.
+          resolveOne({ commentId: a.commentId, buyer: a.buyer, action: "create", item: p.code, size, qty: a.qty ?? 1 });
+          return;
+        }
+        if (p.sizes.length === 0) reply(a, a.reply, "ask");
+        else if (a.size !== null && size === undefined) reply(a, `${p.code} chỉ có size ${sizeList(p)} ạ.`, "invalid_size");
+        else reply(a, `Bạn chọn size nào ạ? ${p.code} có size ${sizeList(p)}.`, "missing_size");
+        return;
+      }
+      if (a.reason === "unknown_item" && a.item && !p) {
+        reply(a, `Shop chưa có mã ${a.item}, bạn xem lại giúp shop nhé.`, "unknown_item");
+        return;
+      }
       reply(a, a.reply, "ask");
       return;
     }
