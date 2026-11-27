@@ -15,6 +15,7 @@ const { httpServer } = createApp({
   vietqr: env.VIETQR_BANK_BIN && env.VIETQR_ACCOUNT_NUMBER ? { bankBin: env.VIETQR_BANK_BIN, accountNumber: env.VIETQR_ACCOUNT_NUMBER } : null,
   buyerHistorySeed: { u_boom: { boomed: 2, completed: 1 } },
   ...(env.INGEST_KEY ? { ingestKey: env.INGEST_KEY } : {}),
+  devRoutes: env.NODE_ENV !== "production" || env.DEV_ROUTES === "1",
   facebook: env.FB_GRAPH_VERSION
     ? {
         graphVersion: env.FB_GRAPH_VERSION,

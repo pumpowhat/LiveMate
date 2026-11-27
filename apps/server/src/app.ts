@@ -34,6 +34,11 @@ export interface AppConfig {
   buyerHistorySeed?: Record<string, { boomed: number; completed: number }>;
   /** Khóa cho POST /api/ingest (extension). Bỏ trống = không kiểm tra (chỉ dùng khi dev). */
   ingestKey?: string;
+  /**
+   * Bật /api/dev/*, cho phép /api/ingest không cần key và seller "demo" cho Kết nối Fanpage.
+   * CHỈ dùng khi chạy local. index.ts bật khi NODE_ENV !== "production" (hoặc DEV_ROUTES=1).
+   */
+  devRoutes?: boolean;
 }
 
 /**
@@ -43,6 +48,8 @@ export interface AppConfig {
 export function createApp(cfg: AppConfig) {
   const app = express();
   app.use(express.json());
+  // Route dev không có xác thực: tắt hẳn khi deploy.
+  app.use("/api/dev", (_req, res, next) => (cfg.devRoutes ? next() : void res.status(404).json({ error: "Không có route này" })));
   const httpServer = createServer(app);
   const io: Io = new Server(httpServer, { cors: { origin: cfg.webOrigin } });
 
@@ -138,7 +145,10 @@ export function createApp(cfg: AppConfig) {
    * extension có thể đọc lại cùng một bình luận khi trang render lại.
    */
   const recentIngest = new Map<string, number>(); // key -> thời điểm (ms)
-  const INGEST_DEDUPE_MS = 30_000;
+  // 10 phút: TikTok/Facebook vẽ lại các dòng chat cũ khi cuộn, extension sẽ đọc lại —
+  // cửa sổ ngắn sẽ biến bình luận cũ thành đơn trùng.
+  const INGEST_DEDUPE_MS = 10 * 60_000;
+  const INGEST_DEDUPE_MAX = 20_000;
   app.use("/api/ingest", (req, res, next) => {
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Headers", "Content-Type, X-Ingest-Key");
@@ -147,6 +157,7 @@ export function createApp(cfg: AppConfig) {
     next();
   });
   app.post("/api/ingest", (req, res) => {
+    if (!cfg.ingestKey && !cfg.devRoutes) return void res.status(503).json({ error: "Chưa cấu hình INGEST_KEY trên server" });
     if (cfg.ingestKey && req.get("X-Ingest-Key") !== cfg.ingestKey) return void res.status(401).json({ error: "Sai ingest key" });
     const body = req.body as { roomCode?: unknown; platform?: unknown; comments?: unknown };
     const sessionId = sessionByRoom.get(String(body?.roomCode ?? ""));
@@ -155,7 +166,11 @@ export function createApp(cfg: AppConfig) {
     const platform = String(body.platform ?? "live").replace(/[^\w-]/g, "").slice(0, 20) || "live";
 
     const now = Date.now();
-    for (const [k, t] of recentIngest) if (now - t > INGEST_DEDUPE_MS) recentIngest.delete(k);
+    // Map giữ thứ tự chèn: xóa từ đầu cho tới khi gặp mục còn hạn, và giới hạn kích thước.
+    for (const [k, t] of recentIngest) {
+      if (now - t <= INGEST_DEDUPE_MS && recentIngest.size <= INGEST_DEDUPE_MAX) break;
+      recentIngest.delete(k);
+    }
 
     let accepted = 0;
     let duplicates = 0;
@@ -242,7 +257,9 @@ export function createApp(cfg: AppConfig) {
         oauth: { ...cfg.facebook.app, graphVersion: cfg.facebook.graphVersion },
         store: new InMemoryFacebookConnectionStore(),
         publicWebUrl: cfg.publicWebUrl,
-        resolveSellerId: () => "demo", // TODO(#3): lấy từ phiên đăng nhập người bán
+        // TODO(#3): lấy sellerId từ phiên đăng nhập. Tới lúc đó, khi deploy (không phải dev)
+        // trả null => 401, để người lạ không ngắt kết nối / đổi video đang theo dõi.
+        resolveSellerId: () => (cfg.devRoutes ? "demo" : null),
         onWatch: ({ pageToken, objectId }) => watchFacebook(pageToken, objectId),
       }),
     );

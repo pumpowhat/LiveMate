@@ -5,6 +5,9 @@
 
   const selectorKey = platform + 'Selectors';
   const captureKeys = ['enabled', selectorKey, 'serverUrl', 'roomCode', 'ingestKey'];
+  // 10 phút: khung chat vẽ lại các dòng cũ khi cuộn; cửa sổ ngắn sẽ gửi lại bình luận cũ thành đơn trùng.
+  const DEDUPE_MS = 10 * 60_000;
+  const DEDUPE_MAX = 5000;
   const recent = new Map();
   let enabled;
   let overrides;
@@ -18,7 +21,7 @@
 
   function pruneRecent(now) {
     for (const [key, time] of recent) {
-      if (time > now - 30_000) break;
+      if (time > now - DEDUPE_MS && recent.size <= DEDUPE_MAX) break;
       recent.delete(key);
     }
   }
