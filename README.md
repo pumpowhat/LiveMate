@@ -168,7 +168,7 @@ Hai ngữ cảnh **"món đang giới thiệu"** và **"đơn hiện có của n
 | Backend | Node.js + Express |
 | Database | PostgreSQL trên Railway, truy cập qua Prisma |
 | Lọc nhanh bình luận | Từ khóa + regex, nghiêng về cho qua (để lọt còn hơn sót đơn) |
-| AI | Chạy thử Gemini Flash và GPT mini trên bộ bình luận mẫu, so độ chính xác và độ trễ rồi chọn một |
+| AI | **Gemini 3.5 Flash-Lite** (đúng 49/50 bình luận mẫu, trễ p50 ~1,2–1,8 giây), dự phòng Gemini 3.5 Flash. Tự giới hạn số request/phút và tự chuyển model khi gặp lỗi 429/503 |
 | Extension | Chrome Manifest V3, `MutationObserver` |
 | QR thanh toán | Chuẩn VietQR (EMVCo), backend tự sinh chuỗi và ảnh QR |
 | Hosting | Vercel (frontend) + Railway (backend + database) |
@@ -236,6 +236,8 @@ packages/
 | AI hiểu sai bình luận | Người bán luôn duyệt / sửa được; với câu mơ hồ AI trả `ask` thay vì đoán |
 | Độ trễ khi live đông | Lọc nhanh trước khi gọi LLM, gom lô 1–2 giây, dùng model nhỏ |
 | Chi phí gọi LLM | Chỉ gửi bình luận có ý định đặt hàng; ngữ cảnh gọn |
+| Quota gói miễn phí Gemini (15 request/phút, Flash chỉ 20 request/ngày) | Lô tự lớn lên khi đông; xoay vòng nhiều model; **bật billing trước khi giám khảo test** |
+| AI bịa dữ kiện khi trả lời khách (ví dụ sai size) | Câu trả lời về size / mã món do hệ thống viết từ danh mục, không dùng câu LLM viết |
 | Graph API không trả tên người bình luận, hoặc token hết hạn | Kiểm tra ngay ngày đầu; dùng Page token dài hạn; giữ phòng live dự phòng cho giám khảo |
 | Không có buổi live nào đang phát khi giám khảo test | Đọc bình luận trên bài đăng/video đã ghim, không chỉ trên live đang phát |
 | Extension hỏng khi nền tảng đổi giao diện | Extension chỉ là phần làm thêm, không nằm trong luồng chính |

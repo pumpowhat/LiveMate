@@ -8,6 +8,8 @@ import type { ClientToServerEvents, ServerToClientEvents } from "@livemate/share
 import type { Socket } from "socket.io-client";
 
 const base = process.argv[2] ?? "http://localhost:4000";
+/** Thời gian chờ mỗi lô (ms). LLM thật cần ~5000. */
+const WAIT = Number(process.env.SMOKE_WAIT_MS ?? 2500);
 const seller: Socket<ServerToClientEvents, ClientToServerEvents> = io(base);
 const buyer: Socket<ServerToClientEvents, ClientToServerEvents> = io(base);
 const log = (tag: string) => (x: unknown) => console.log(tag.padEnd(16), JSON.stringify(x).slice(0, 160));
@@ -29,11 +31,11 @@ say("u_lan", "Lan", "chốt V03 size M");
 say("u_minh", "Minh", "đẹp quá shop ơi");
 say("u_minh", "Minh", "e lấy 2c A01 L");
 say("u_lan", "Lan", "à đổi sang L nha shop");
-await new Promise((r) => setTimeout(r, 2500));
+await new Promise((r) => setTimeout(r, WAIT));
 say("u_minh", "Minh", "thôi hủy nha");
 say("u_boom", "Khách boom", "chốt A02 size S");
 say("u_hoa", "Hoa", "chốt V05 size L");
-await new Promise((r) => setTimeout(r, 2500));
+await new Promise((r) => setTimeout(r, WAIT));
 
 const state = (await (await fetch(`${base}/api/dev/state`)).json()) as { orders: { code: string; status: string; publicToken: string; total: number }[] };
 console.log("\norders:", state.orders.map((o) => `${o.code} ${o.status} ${o.total}`).join(" | "));
