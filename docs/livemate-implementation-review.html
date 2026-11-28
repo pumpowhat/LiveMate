@@ -636,13 +636,13 @@
       <h1>Tài liệu bàn giao &amp; Đánh giá triển khai LiveMate</h1>
       <p>
         Tài liệu này giúp <strong>Nhật</strong> nắm trọn vẹn kiến trúc, 8 issue đã triển khai, lý do thiết kế,
-        bằng chứng nghiệm thu tại máy (local) và các bước tự chạy lại toàn bộ hệ thống trước khi đẩy nhánh và mở PR nháp.
+        kết quả nghiệm thu tại máy và các bước tự chạy lại hệ thống.
       </p>
       <div class="meta-row">
-        <span class="badge badge-info">Repo: <a href="https://github.com/pumpowhat/LiveMate" target="_blank" rel="noopener noreferrer">pumpowhat/LiveMate</a></span>
-        <span class="badge badge-info">Baseline: <code>c3ed505</code></span>
-        <span class="badge badge-ok">Nghiệm thu local: 28/11/2026</span>
-        <span class="badge badge-warn">Chưa deploy: URL thật / Fanpage thật / Điện thoại thật</span>
+        <a class="badge badge-info" href="https://github.com/pumpowhat/LiveMate/pull/12" target="_blank" rel="noopener noreferrer">PR nháp #12</a>
+        <span class="badge badge-info">Commit gốc <code>c3ed505</code></span>
+        <span class="badge badge-ok">Nghiệm thu local ngày 28/11/2026</span>
+        <span class="badge badge-warn">Chờ triển khai</span>
       </div>
     </section>
 
@@ -740,7 +740,7 @@
           <ul>
             <li><strong>PostgreSQL 17 và 12 nhóm kiểm thử HTTP/Socket.IO.</strong> Đã chạy migration, kiểm tra đăng nhập, phân quyền, quyền riêng tư đơn, đổi và hoàn kho, QR, trạng thái thanh toán và tổng kết. Hai người cùng chốt món cuối chỉ tạo một đơn. Báo cáo giữ đủ đơn đã nhận trước khi đóng phiên và số liệu vẫn khớp sau khi khởi động lại backend.</li>
             <li><strong>Chromium 158 (Desktop <code>1440×940</code> &amp; Mobile <code>360×800</code>):</strong> Đạt 12 checkpoint trên web local: đăng nhập, quét QR phòng, đổi món, lọc bình luận, chốt đơn, tồn kho <code>7 → 6</code>, reload, inline VietQR, sửa đơn <code>135.000đ → 270.000đ</code> và giải mã QR mới cao hơn, báo chuyển, xác nhận thấy <code>paid</code> cả 2 trang, cảnh báo, tổng kết <code>270.000đ</code> / 1 đơn trả / 1 đơn treo &amp; nút nhắc. Không tràn ngang, không lỗi JS chưa xử lý. Reconnect buộc đóng WebSocket: lấy vé mới và tham gia lại bình thường.</li>
-            <li><strong>Load script local (<code>LLM_PROVIDER=fake</code>):</strong> 30 người mua, 120 bình luận/phút trong 60 giây: phát <code>133</code>, hoàn tất <code>133</code>, <code>0</code> unparsed, <code>0</code> sai lệch, <code>p50 = 395 ms</code>, <code>p95 = 474 ms</code>. <em>(Đây là thời gian xử lý backend tới verdict trong kịch bản local với LLM giả, không phải độ trễ Gemini thật hay độ mượt trên mọi thiết bị.)</em></li>
+            <li><strong>Thử tải local trên commit <code>2504cb3</code>.</strong> Chạy Docker và PostgreSQL 17 mới với 30 người mua, 120 bình luận/phút trong 60 giây. Xử lý đủ <code>133/133</code> bình luận, <code>0</code> unparsed và <code>0</code> sai lệch. Thời gian từ lúc gửi bình luận đến kết quả xử lý đạt <code>p50 = 398 ms</code> và <code>p95 = 449 ms</code> khi dùng LLM giả.</li>
             <li><strong>Smoke script local (<code>LLM_PROVIDER=fake</code>):</strong> Tạo, sửa, hủy, rủi ro, QR PNG HTTP 200 (dùng tài khoản giả).</li>
             <li><strong>Bộ kiểm thử workspace.</strong> <code>135</code> server + <code>16</code> extension + <code>5</code> web = <code>156</code> ca. Đã chạy <code>pnpm typecheck</code> toàn workspace và build production của Next.js.</li>
             <li><strong>Docker local ở chế độ production.</strong> Image chạy migration trên database mới, trả <code>/health</code> thành công và tắt API dev. Đăng xuất thu hồi cookie và ngắt luôn kết nối Socket.IO của phiên người bán.</li>
