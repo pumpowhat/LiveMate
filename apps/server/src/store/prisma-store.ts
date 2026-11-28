@@ -8,7 +8,7 @@ import { PrismaFacebookConnectionStore } from "../facebook/prisma-store.ts";
 import type { LineRef } from "../pipeline/gateway.ts";
 import { mapOrderRow, mapProductRow, mapSessionRow, PrismaOrderGateway } from "../pipeline/prisma-gateway.ts";
 import { PrismaBuyerHistoryStore } from "../risk/prisma-history.ts";
-import { ConflictError, NotFoundError, ValidationError } from "./errors.ts";
+import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from "./errors.ts";
 import {
   assertCurrentPaymentOrder,
   computeSessionSummary,
@@ -597,6 +597,7 @@ export class PrismaBackendStore implements BackendStore {
           order: ownOrder,
         };
       }
+      throw new UnauthorizedError("Phiên người mua không hợp lệ");
     }
 
     if (!trimmedName) {

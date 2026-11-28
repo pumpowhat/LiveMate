@@ -36,15 +36,17 @@ export default function PublicOrderPage() {
     });
   }, []);
 
-  const loadOrder = React.useCallback(async () => {
+  const loadOrder = React.useCallback(async (isBackground = false) => {
     try {
       const res = await api.orders.getPublic(token);
       applyOrderIfNewer(res.order);
       setError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Không tìm thấy đơn hàng.");
+      if (!isBackground) {
+        setError(err instanceof ApiError ? err.message : "Không tìm thấy đơn hàng.");
+      }
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   }, [token, applyOrderIfNewer]);
 
@@ -60,16 +62,16 @@ export default function PublicOrderPage() {
     const joinOrder = () => {
       socket.emit("order:join", { publicToken: token }, (ack) => {
         if (disposed) return;
-        setSocketState(ack?.ok ? "connected" : "error");
+        if (ack?.ok) {
+          setSocketState("connected");
+          void loadOrder(true);
+        } else {
+          setSocketState("error");
+        }
       });
     };
 
-    const onReconnect = () => {
-      if (!disposed) void loadOrder();
-    };
-
     socket.on("connect", joinOrder);
-    socket.io.on("reconnect", onReconnect);
     socket.on("connect_error", () => {
       if (!disposed) setSocketState("error");
     });
@@ -88,7 +90,6 @@ export default function PublicOrderPage() {
 
     return () => {
       disposed = true;
-      socket.io.off("reconnect", onReconnect);
       socket.disconnect();
     };
   }, [token, loadOrder, applyOrderIfNewer]);
@@ -124,7 +125,7 @@ export default function PublicOrderPage() {
     setQrError(false);
   }, [qrUrl]);
 
-  if (loading) {
+  if (loading && !order) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4 text-sm text-muted-foreground">
         Đang tải thông tin đơn hàng...
@@ -132,7 +133,7 @@ export default function PublicOrderPage() {
     );
   }
 
-  if (error || !order) {
+  if (!order) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md text-center">

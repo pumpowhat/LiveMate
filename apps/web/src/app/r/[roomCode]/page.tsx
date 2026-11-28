@@ -31,6 +31,10 @@ function storageKeys(roomCode: string) {
   };
 }
 
+function isInvalidBuyerToken(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 401 || err.status === 404);
+}
+
 export default function BuyerRoomPage() {
   const params = useParams<{ roomCode: string }>();
   const roomCode = decodeURIComponent(params.roomCode ?? "DEMO");
@@ -126,8 +130,14 @@ export default function BuyerRoomPage() {
       if (res.order) {
         applyOwnOrderIfNewer(res.order);
       }
-    } catch {
-      // Giữ token nếu lỗi mạng tạm thời
+    } catch (err) {
+      if (roomCodeRef.current !== reqRoom || ownOrderSeqRef.current !== reqSeq) return;
+      if (isInvalidBuyerToken(err)) {
+        window.localStorage.removeItem(keys.token);
+        setBuyerToken(null);
+        setOwnOrder(null);
+        setDisplayName(savedName);
+      }
     }
   }, [roomCode, buyerToken, joinedName, applyOwnOrderIfNewer]);
 
@@ -135,9 +145,10 @@ export default function BuyerRoomPage() {
   React.useEffect(() => {
     let cancelled = false;
     hasConnectedRef.current = false;
+    const initialSeq = ownOrderSeqRef.current;
     (async () => {
       await fetchRoomState();
-      if (cancelled || typeof window === "undefined") return;
+      if (cancelled || roomCodeRef.current !== roomCode || ownOrderSeqRef.current !== initialSeq) return;
       const keys = storageKeys(roomCode);
       const savedToken = window.localStorage.getItem(keys.token);
       const savedName = window.localStorage.getItem(keys.name);
@@ -154,8 +165,11 @@ export default function BuyerRoomPage() {
             setJoinedName(savedName);
             applyOwnOrderIfNewer(res.order);
           }
-        } catch {
-          if (!cancelled) window.localStorage.removeItem(keys.token);
+        } catch (err) {
+          if (!cancelled && roomCodeRef.current === roomCode && ownOrderSeqRef.current === reqSeq) {
+            if (isInvalidBuyerToken(err)) window.localStorage.removeItem(keys.token);
+            setDisplayName((prev) => prev || savedName);
+          }
         }
       }
     })();
@@ -257,10 +271,14 @@ export default function BuyerRoomPage() {
     e.preventDefault();
     const name = displayName.trim();
     if (!name) return;
+    const reqRoom = roomCode;
+    const reqSeq = ++ownOrderSeqRef.current;
+    const keys = storageKeys(reqRoom);
+    const existingToken = window.localStorage.getItem(keys.token) ?? undefined;
     setJoining(true);
     try {
-      const res = await api.rooms.join(roomCode, { displayName: name });
-      const keys = storageKeys(roomCode);
+      const res = await api.rooms.join(reqRoom, { displayName: name, buyerToken: existingToken });
+      if (roomCodeRef.current !== reqRoom || ownOrderSeqRef.current !== reqSeq) return;
       window.localStorage.setItem(keys.token, res.buyerToken);
       window.localStorage.setItem(keys.name, name);
       setBuyerToken(res.buyerToken);
@@ -268,13 +286,15 @@ export default function BuyerRoomPage() {
       setOwnOrder(res.order);
       toast({ title: `Chào ${name}!`, description: "Bạn có thể bình luận chốt đơn ngay.", variant: "success" });
     } catch (err) {
+      if (roomCodeRef.current !== reqRoom || ownOrderSeqRef.current !== reqSeq) return;
+      if (existingToken && isInvalidBuyerToken(err)) window.localStorage.removeItem(keys.token);
       toast({
         title: "Không thể tham gia phòng",
         description: err instanceof ApiError ? err.message : "Đã có lỗi xảy ra.",
         variant: "destructive",
       });
     } finally {
-      setJoining(false);
+      if (roomCodeRef.current === reqRoom && ownOrderSeqRef.current === reqSeq) setJoining(false);
     }
   }
 
@@ -389,16 +409,16 @@ export default function BuyerRoomPage() {
           <Card className="border-primary/40 bg-teal-50/40">
             <CardContent className="p-3.5">
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <Pin className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs font-semibold text-primary">Món đang ghim</span>
-                    <Badge variant="default">{featured.code}</Badge>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Pin className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span className="text-xs font-semibold text-primary shrink-0">Món đang ghim</span>
+                    <Badge variant="default" className="shrink-0">{featured.code}</Badge>
                   </div>
-                  <p className="mt-1 text-sm font-semibold">{featured.name}</p>
+                  <p className="mt-1 text-sm font-semibold break-words">{featured.name}</p>
                   <p className="text-sm font-bold text-primary">{formatVnd(featured.price)}</p>
                   {featured.sizes.length > 0 && (
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="mt-0.5 text-xs text-muted-foreground break-words">
                       Size: {featured.sizes.join(", ")}
                     </p>
                   )}
@@ -407,6 +427,7 @@ export default function BuyerRoomPage() {
                   <Button
                     size="sm"
                     variant="outline"
+                    className="shrink-0"
                     onClick={() =>
                       setCommentText(
                         featured.sizes[0] ? `Chốt ${featured.code} ${featured.sizes[0]}` : `Chốt ${featured.code}`,
@@ -448,8 +469,7 @@ export default function BuyerRoomPage() {
                 <div className="rounded-lg border bg-white p-3 text-center">
                   {ownQrError ? (
                     <p className="text-xs text-muted-foreground">
-                      Chưa hiển thị được ảnh VietQR. Nội dung CK:{" "}
-                      <strong className="text-foreground">LM {ownOrder.code}</strong>
+                      Chưa hiển thị được ảnh VietQR. Vui lòng mở Trang đơn để xem đúng nội dung chuyển khoản.
                     </p>
                   ) : (
                     <>
@@ -461,7 +481,7 @@ export default function BuyerRoomPage() {
                         onError={() => setOwnQrError(true)}
                       />
                       <p className="mt-1.5 text-[11px] text-muted-foreground">
-                        Nội dung CK: <strong className="text-foreground">LM {ownOrder.code}</strong>
+                        Vui lòng mở Trang đơn để xem đúng nội dung chuyển khoản.
                       </p>
                     </>
                   )}

@@ -26,8 +26,8 @@
 | `OPENAI_API_KEY` | Có nếu dùng OpenAI | Khóa API OpenAI. Đặt cùng `OPENAI_MODEL`. |
 | `OPENAI_MODEL` | Có nếu dùng OpenAI | Một hoặc nhiều model, phân cách bằng dấu phẩy. Model đầu được ưu tiên. |
 | `OPENAI_RPM` | Tùy chọn | Giới hạn số yêu cầu mỗi phút cho từng model OpenAI. Mặc định `0` để bỏ giới hạn trong ứng dụng. |
-| `VIETQR_BANK_BIN` | Có nếu bật VietQR | Mã BIN ngân hàng. Đặt cùng `VIETQR_ACCOUNT_NUMBER`. |
-| `VIETQR_ACCOUNT_NUMBER` | Có nếu bật VietQR | Số tài khoản nhận tiền. Giữ các chữ số `0` ở đầu nếu có. |
+| `VIETQR_BANK_BIN` | Có nếu bật VietQR | Mã BIN ngân hàng gồm đúng 6 chữ số. Đặt cùng `VIETQR_ACCOUNT_NUMBER`. |
+| `VIETQR_ACCOUNT_NUMBER` | Có nếu bật VietQR | Số tài khoản nhận tiền gồm từ 1 đến 19 ký tự chữ và số ASCII, giữ nguyên các chữ số `0` ở đầu nếu có. |
 | `INGEST_KEY` | Có | Khóa bảo vệ `POST /api/ingest`. Extension phải gửi cùng giá trị trong header `X-Ingest-Key`. |
 | `FB_GRAPH_VERSION` | Có nếu bật Facebook | Phiên bản Facebook Graph API mà ứng dụng Meta đang dùng. |
 | `FB_PAGE_TOKEN` | Tùy chọn | Page access token cho luồng theo dõi Facebook ở môi trường thử nghiệm. |
@@ -38,6 +38,13 @@
 | `PIPELINE_MAX_BATCH` | Tùy chọn | Số bình luận tối đa mỗi lần gọi LLM. Mặc định `40`. |
 | `DEV_ROUTES` | Để trống ở production | Route `/api/dev/*` mặc định tắt khi `NODE_ENV=production`. Giá trị `1` bật lại các route này (và luồng `DEMO` legacy không cần capability). |
 | `NODE_ENV` | `production` do Dockerfile đặt | Giữ giá trị này trong production. |
+
+> [!IMPORTANT]
+> **Chạy một replica backend.** Phòng Socket.IO, hàng đợi AI, poller Facebook và OAuth state đều nằm trong bộ nhớ riêng của mỗi tiến trình. Với nhiều replica, các kết nối và tác vụ này có thể nằm ở các tiến trình khác nhau.
+>
+> Cấu hình các quyền OAuth cho ứng dụng Meta gồm `pages_show_list`, `pages_read_engagement`, `pages_read_user_content` và `pages_manage_engagement`.
+>
+> Sau khi khởi động lại backend, người bán mở **Kết nối Fanpage** rồi bấm lại **Theo dõi** để bật poller. Nếu video vẫn hiện nút **Đang theo dõi**, bấm nút đó để bật lại.
 
 Backend cần ít nhất một cặp khóa API và model của Gemini hoặc OpenAI để khởi động với LLM thật. Khi dùng Gemini, hãy bật thanh toán cho dự án của khóa API trước khi ban giám khảo chạy thử. LiveMate mặc định dùng `15` yêu cầu/phút cho mỗi model Gemini khi chuẩn bị cấu hình free tier. Kiểm tra hạn mức theo từng model và dự án trong AI Studio rồi đặt `GEMINI_RPM` theo hạn mức thực tế. [Hạn mức Gemini API](https://ai.google.dev/gemini-api/docs/rate-limits)
 

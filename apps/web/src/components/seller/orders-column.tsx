@@ -113,8 +113,9 @@ export function OrdersColumn({ session, catalog, orders, onOrderUpdated }: Order
     e.preventDefault();
     if (!editTarget) return;
     setPatchError(null);
-    const qtyNum = Number.parseInt(patchQty, 10);
-    if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
+    const trimmedQty = patchQty.trim();
+    const qtyNum = trimmedQty ? Number(trimmedQty) : NaN;
+    if (!Number.isInteger(qtyNum) || qtyNum <= 0) {
       setPatchError("Số lượng phải lớn hơn 0.");
       return;
     }

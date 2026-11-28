@@ -6,7 +6,7 @@ import { resolveDemoSeedConfig } from "../config/env.ts";
 import { InMemoryFacebookConnectionStore } from "../facebook/store.ts";
 import type { LineRef, OrderGateway, SessionContext } from "../pipeline/gateway.ts";
 import { InMemoryBuyerHistoryStore } from "../risk/history.ts";
-import { ConflictError, NotFoundError, ValidationError } from "./errors.ts";
+import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from "./errors.ts";
 import {
   cloneProduct,
   assertCurrentPaymentOrder,
@@ -502,6 +502,7 @@ export class MemoryBackendStore implements BackendStore {
           order: ownOrder ? structuredClone(ownOrder) : null,
         };
       }
+      throw new UnauthorizedError("Phiên người mua không hợp lệ");
     }
 
     if (!trimmedName) {

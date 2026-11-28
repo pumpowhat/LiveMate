@@ -223,6 +223,11 @@ describe("LiveMate Server API & Realtime Isolation", () => {
     expect(joinData.buyerToken).toBeTruthy();
     expect(joinData.order).toBeNull();
 
+    const invalidRejoin = await req(`/api/rooms/${session.roomCode}/join`, {
+      body: { displayName: "Lan", buyerToken: "invalid" },
+    });
+    expect(invalidRejoin.status).toBe(401);
+
     // Public room snapshot never leaks orders or raw buyerExternalId.
     const publicRoomRes = await req(`/api/rooms/${session.roomCode}`);
     expect(publicRoomRes.status).toBe(200);

@@ -29,37 +29,34 @@ interface CatalogColumnProps {
   onSessionUpdated: (session: LiveSession) => void;
 }
 
-function parseSizesAndStock(sizesText: string, stockText: string): { sizes: string[]; stock: Record<string, number> } {
-  const sizes = sizesText
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const stock: Record<string, number> = {};
+function parseStock(sizes: string[], stockText: string): Record<string, number> | null {
+  const trimmedStock = stockText.trim();
   if (sizes.length === 0) {
-    const qty = Number.parseInt(stockText.trim(), 10);
-    stock[""] = Number.isFinite(qty) && qty >= 0 ? qty : 0;
-    return { sizes: [], stock };
+    const qty = Number(trimmedStock);
+    return Number.isInteger(qty) && qty >= 0 ? { "": qty } : null;
   }
+
+  const stock: Record<string, number> = Object.fromEntries(sizes.map((size) => [size, 0]));
+  if (!trimmedStock) return stock;
 
   // Hỗ trợ dạng "S:10, M:8" hoặc một số chung "10"
-  const parts = stockText.split(",").map((p) => p.trim()).filter(Boolean);
-  const singleNumber = parts.length === 1 && !parts[0]?.includes(":") ? Number.parseInt(parts[0]!, 10) : NaN;
-
-  if (Number.isFinite(singleNumber) && singleNumber >= 0) {
-    for (const s of sizes) stock[s] = singleNumber;
-    return { sizes, stock };
+  const parts = trimmedStock.split(",").map((p) => p.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  const [first] = parts;
+  if (parts.length === 1 && first && !first.includes(":")) {
+    const qty = Number(first);
+    if (!Number.isInteger(qty) || qty < 0) return null;
+    return Object.fromEntries(sizes.map((size) => [size, qty]));
   }
 
-  for (const s of sizes) stock[s] = 0;
   for (const part of parts) {
-    const [k, v] = part.split(":").map((x) => x.trim());
-    if (k && v !== undefined) {
-      const n = Number.parseInt(v, 10);
-      if (Number.isFinite(n) && n >= 0) stock[k] = n;
-    }
+    const [size, value, extra] = part.split(":").map((x) => x.trim());
+    if (!size || !value || extra !== undefined) return null;
+    const qty = Number(value);
+    if (!Number.isInteger(qty) || qty < 0) return null;
+    stock[size] = qty;
   }
-  return { sizes, stock };
+  return stock;
 }
 
 function formatStockInput(product: Product): string {
@@ -113,12 +110,19 @@ export function CatalogColumn({
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
-    const parsedPrice = Number.parseInt(price.trim(), 10);
-    if (!code.trim() || !name.trim() || !Number.isFinite(parsedPrice) || parsedPrice < 0) {
+    const trimmedPrice = price.trim();
+    const parsedPrice = trimmedPrice ? Number(trimmedPrice) : NaN;
+    if (!code.trim() || !name.trim() || !Number.isInteger(parsedPrice) || parsedPrice < 0) {
       setFormError("Vui lòng nhập mã, tên sản phẩm và giá hợp lệ.");
       return;
     }
-    const { sizes, stock } = parseSizesAndStock(sizesText, stockText);
+    const sizes = sizesText.split(",").map((size) => size.trim()).filter(Boolean);
+    const stockChanged = !editing || stockText !== formatStockInput(editing);
+    const stock = stockChanged ? parseStock(sizes, stockText) : {};
+    if (!stock) {
+      setFormError("Số lượng tồn kho không hợp lệ.");
+      return;
+    }
     const payload: ProductInput = {
       code: code.trim().toUpperCase(),
       name: name.trim(),
@@ -134,7 +138,7 @@ export function CatalogColumn({
         const res = await api.products.update(session.id, editing.id, {
           ...fields,
           ...(sizesText === editing.sizes.join(", ") ? {} : { sizes }),
-          ...(stockText === formatStockInput(editing) ? {} : { stock }),
+          ...(stockChanged ? { stock } : {}),
         });
         onProductUpdated(res.product);
         toast({ title: "Đã cập nhật sản phẩm", description: `${res.product.code} - ${res.product.name}`, variant: "success" });
