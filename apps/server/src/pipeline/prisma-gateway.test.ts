@@ -326,7 +326,7 @@ function createMockPrisma(seed: { session: LiveSession; catalog: Product[]; prev
     },
   };
 
-  return { prisma: client as unknown as PrismaClient, queries, products };
+  return { prisma: client as unknown as PrismaClient, queries, products, orders };
 }
 
 const session: LiveSession = {
@@ -347,6 +347,7 @@ describe("PrismaOrderGateway", () => {
   let gateway: PrismaOrderGateway;
   let queries: string[];
   let products: Map<string, DbProduct>;
+  let orders: Map<string, { status: string; sellerEdited: boolean }>;
 
   beforeEach(() => {
     catalog = [
@@ -356,6 +357,7 @@ describe("PrismaOrderGateway", () => {
     const mock = createMockPrisma({ session, catalog, previouslyFeatured: ["A01"] });
     queries = mock.queries;
     products = mock.products;
+    orders = mock.orders;
     gateway = new PrismaOrderGateway(mock.prisma);
   });
 
@@ -413,5 +415,23 @@ describe("PrismaOrderGateway", () => {
     const emptied = await gateway.removeItem(next.id, bag, "c6");
     expect(emptied).toMatchObject({ code: "A2", status: "cancelled", items: [], total: 0 });
     expect(products.get("bag")?.stock[""]).toBe(2);
+  });
+
+  test("refuses AI changes when the order was locked after the AI read it", async () => {
+    const order = await gateway.addItem(session.id, buyer, { ...dress, qty: 1 }, "c1");
+
+    orders.get(order.id)!.sellerEdited = true;
+    await expect(gateway.updateItem(order.id, dress, { size: "L" }, "c2")).rejects.toMatchObject({
+      name: "OrderLockedError", orderId: order.id, reason: "seller_edited",
+    });
+    await expect(gateway.removeItem(order.id, null, "c3")).rejects.toMatchObject({ reason: "seller_edited" });
+    // Shop đã sửa tay vẫn cho khách thêm món.
+    expect((await gateway.addItem(session.id, buyer, { ...bag, qty: 1 }, "c4")).items).toHaveLength(2);
+
+    orders.get(order.id)!.status = "awaiting_confirmation";
+    await expect(gateway.addItem(session.id, buyer, { ...dress, qty: 1 }, "c5")).rejects.toMatchObject({ reason: "payment_reported" });
+    await expect(gateway.removeItem(order.id, bag, "c6")).rejects.toMatchObject({ reason: "payment_reported" });
+    expect(products.get("dress")?.stock).toEqual({ M: 2, L: 1 });
+    expect(products.get("bag")?.stock[""]).toBe(1);
   });
 });

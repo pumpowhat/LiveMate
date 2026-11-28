@@ -11,7 +11,7 @@ export type Operation =
   | { kind: "remove"; commentId: string; buyer: string; orderId: string; line: LineRef | null }
   | { kind: "reply"; commentId: string; buyer: string; text: string; reason: ReplyReason; meta?: ReplyMeta }
   /** Đơn đã được người bán sửa tay: AI không tự đổi, chỉ báo người bán. */
-  | { kind: "needs_review"; commentId: string; buyer: string; orderId: string; action: AiAction };
+  | { kind: "needs_review"; commentId: string; buyer: string; orderId: string; action: AiAction; reason: "seller_edited" | "payment_reported" };
 
 export interface ReplyMeta {
   productCode: string;
@@ -82,8 +82,11 @@ export function createResolver(catalog: Product[], initialOrders: Map<string, Or
     }
 
     const order = openOrders.get(a.buyer);
-    if (a.action !== "create" && order?.sellerEdited) {
-      ops.push({ kind: "needs_review", commentId: a.commentId, buyer: a.buyer, orderId: order.id, action: a });
+    // Người bán đã sửa tay, hoặc khách đã báo chuyển tiền (số tiền đã chốt): AI không tự đổi đơn,
+    // kể cả thêm món, vì tổng tiền sẽ lệch với khoản khách đã chuyển. Để người bán xem.
+    if (order && ((a.action !== "create" && order.sellerEdited) || order.status === "awaiting_confirmation")) {
+      const reason = order.status === "awaiting_confirmation" ? "payment_reported" : "seller_edited";
+      ops.push({ kind: "needs_review", commentId: a.commentId, buyer: a.buyer, orderId: order.id, action: a, reason });
       return;
     }
 

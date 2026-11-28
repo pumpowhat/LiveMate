@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { LiveSession, Order, OrderItem, Product } from "@livemate/shared";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { isOpenStatus, parseStockJson } from "../store/transitions.ts";
-import type { BuyerRef, LineRef, OrderGateway, SessionContext } from "./gateway.ts";
+import { aiLockReason, OrderLockedError, type BuyerRef, type LineRef, type OrderGateway, type SessionContext } from "./gateway.ts";
 
 interface RawProductRow {
   id: string;
@@ -214,6 +214,8 @@ export class PrismaOrderGateway implements OrderGateway {
             include: { items: { orderBy: { sortOrder: "asc" } } },
           })
         : null;
+      const addLock = existingOrder && aiLockReason(existingOrder, "add");
+      if (existingOrder && addLock) throw new OrderLockedError(existingOrder.id, addLock);
 
       const product = await this.lockProduct(tx, sessionId, line.productId);
       const item = makeOrderItem(product, line.size, line.qty);
@@ -319,6 +321,8 @@ export class PrismaOrderGateway implements OrderGateway {
         include: { buyer: true, items: { orderBy: { sortOrder: "asc" } } },
       });
       if (!order || !isOpenStatus(order.status)) throw new Error(`No open order: ${orderId}`);
+      const changeLock = aiLockReason(order, "change");
+      if (changeLock) throw new OrderLockedError(order.id, changeLock);
 
       const old = order.items.find((item) => sameLine(item, line));
       if (!old) throw new Error(`Missing order line: ${line.productId} (${line.size ?? "no size"})`);
@@ -404,6 +408,8 @@ export class PrismaOrderGateway implements OrderGateway {
         include: { buyer: true, items: { orderBy: { sortOrder: "asc" } } },
       });
       if (!order || !isOpenStatus(order.status)) throw new Error(`No open order: ${orderId}`);
+      const changeLock = aiLockReason(order, "change");
+      if (changeLock) throw new OrderLockedError(order.id, changeLock);
 
       const removed =
         line === null
