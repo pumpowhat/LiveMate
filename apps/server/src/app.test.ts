@@ -4,7 +4,7 @@ import type { IncomingMessage, Server } from "node:http";
 import { duplexPair } from "node:stream";
 import { text } from "node:stream/consumers";
 import { io as ioClient, type Socket } from "socket.io-client";
-import type { ClientToServerEvents, Comment, Order, Product, Seller, ServerToClientEvents } from "@livemate/shared";
+import type { ClientToServerEvents, Comment, Order, Product, PublicOrder, Seller, ServerToClientEvents } from "@livemate/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.ts";
 import { FakeRegexLlm } from "./pipeline/fake-llm.ts";
@@ -240,10 +240,11 @@ describe("LiveMate Server API & Realtime Isolation", () => {
     });
     const buyerSock: Socket<ServerToClientEvents, ClientToServerEvents> = ioClient(baseUrl, { reconnection: false });
     const viewerSock: Socket<ServerToClientEvents, ClientToServerEvents> = ioClient(baseUrl, { reconnection: false });
+    const publicOrderSock: Socket<ServerToClientEvents<PublicOrder>, ClientToServerEvents> = ioClient(baseUrl, { reconnection: false });
 
     try {
       await Promise.all(
-        [sellerSock, buyerSock, viewerSock].map((socket) => new Promise<void>((resolve) => socket.once("connect", resolve))),
+        [sellerSock, buyerSock, viewerSock, publicOrderSock].map((socket) => new Promise<void>((resolve) => socket.once("connect", resolve))),
       );
 
       // Viewer cannot join as seller without seller token.
@@ -303,6 +304,14 @@ describe("LiveMate Server API & Realtime Isolation", () => {
       const rejoinData = (await rejoinRes.json()) as { buyerToken: string; order: Order | null };
       expect(rejoinData.order?.id).toBe(sellerOrder.id);
 
+      const { publicToken } = sellerOrder;
+      const orderPath = `/api/orders/${publicToken}`;
+      const orderAck = await publicOrderSock.emitWithAck("order:join", { publicToken });
+      expect(orderAck.ok).toBe(true);
+      const publicOrder = (await (await req(orderPath)).json() as { order: PublicOrder }).order;
+      expect(publicOrder.buyer).toEqual({ displayName: "Lan" });
+      expect(publicOrder).not.toHaveProperty("sourceCommentIds");
+
       // QR endpoint returns valid PNG for unpaid order.
       const qrRes = await req(`/api/orders/${sellerOrder.publicToken}/qr.png`);
       expect(qrRes.status).toBe(200);
@@ -314,19 +323,43 @@ describe("LiveMate Server API & Realtime Isolation", () => {
       const onClosedSpy = vi.spyOn(risk, "onOrderClosed");
 
       const reportedEv = new Promise<Order>((resolve) => sellerSock.once("payment:reported", resolve));
-      const reportRes = await req(`/api/orders/${sellerOrder.publicToken}/report-payment`, { method: "POST" });
+      const publicReportEv = new Promise<PublicOrder>((resolve) => publicOrderSock.once("payment:reported", resolve));
+      const reportRes = await req(`${orderPath}/report-payment`, { body: { updatedAt: publicOrder.updatedAt } });
       expect(reportRes.status).toBe(200);
-      expect(((await reportRes.json()) as { order: Order }).order.status).toBe("awaiting_confirmation");
-      await reportedEv;
+      const { order: reported } = (await reportRes.json()) as { order: PublicOrder };
+      expect(reported.status).toBe("awaiting_confirmation");
+      expect(reported.buyer).toEqual({ displayName: "Lan" });
+      expect((await reportedEv).buyer.externalId).toBe(sellerOrder.buyer.externalId);
+      expect(await publicReportEv).toEqual(reported);
       expect(onReportedSpy).toHaveBeenCalledTimes(1);
       expect(viewerOrders).toEqual([]);
 
+      const updatedEv = new Promise<PublicOrder>((resolve) => publicOrderSock.once("order:updated", resolve));
+      const patchRes = await req(`/api/sessions/${session.id}/orders/${sellerOrder.id}`, {
+        method: "PATCH", jar: jarSeller,
+        body: { line: { productId: product.id, size: "M" }, patch: { qty: 2 } },
+      });
+      expect(patchRes.status).toBe(200);
+      const revised = await updatedEv;
+      expect(revised).toMatchObject({ status: "pending_payment", total: 500_000 });
+      expect(revised.buyer).toEqual({ displayName: "Lan" });
+      const confirm = (updatedAt: string) => req(`/api/orders/${sellerOrder.id}/confirm`, { body: { updatedAt }, jar: jarSeller });
+      expect((await confirm(revised.updatedAt)).status).toBe(409);
+      expect((await req(`${orderPath}/report-payment`, { body: { updatedAt: publicOrder.updatedAt } })).status).toBe(409);
+      expect((await publicOrderSock.emitWithAck("payment:report", { publicToken, updatedAt: publicOrder.updatedAt })).ok).toBe(false);
+      expect(onReportedSpy).toHaveBeenCalledTimes(1);
+      expect((await req(`${orderPath}/report-payment`, { body: { updatedAt: revised.updatedAt } })).status).toBe(200);
+      const latest = (await (await req(orderPath)).json() as { order: PublicOrder }).order;
+      expect((await confirm(reported.updatedAt)).status).toBe(409);
+
       // Seller confirms -> paid, cancels payment timer, emits payment:confirmed privately.
       const confirmedEv = new Promise<Order>((resolve) => buyerSock.once("payment:confirmed", resolve));
-      const confirmRes = await req(`/api/orders/${sellerOrder.id}/confirm`, { method: "POST", jar: jarSeller });
+      const publicConfirmedEv = new Promise<PublicOrder>((resolve) => publicOrderSock.once("payment:confirmed", resolve));
+      const confirmRes = await confirm(latest.updatedAt);
       expect(confirmRes.status).toBe(200);
       expect(((await confirmRes.json()) as { order: Order }).order.status).toBe("paid");
       await confirmedEv;
+      expect((await publicConfirmedEv).buyer).toEqual({ displayName: "Lan" });
       expect(onConfirmedSpy).toHaveBeenCalledWith(sellerOrder.id);
 
       // Illegal transition: cannot cancel a paid order.
@@ -341,6 +374,7 @@ describe("LiveMate Server API & Realtime Isolation", () => {
       sellerSock.close();
       buyerSock.close();
       viewerSock.close();
+      publicOrderSock.close();
     }
   });
 });

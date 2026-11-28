@@ -1,8 +1,9 @@
-import { buyerRoom, orderRoom, sellerRoom, type ClientToServerEvents, type Comment, type Order, type ServerToClientEvents } from "@livemate/shared";
+import { buyerRoom, orderRoom, sellerRoom, type ClientToServerEvents, type Comment, type Order, type PublicOrder, type RiskAlert, type ServerToClientEvents } from "@livemate/shared";
 import type { Server } from "socket.io";
+import { toPublicOrder } from "../payment/public-order.ts";
 import type { PipelineSink } from "../pipeline/pipeline.ts";
 
-export type Io = Server<ClientToServerEvents, ServerToClientEvents>;
+export type Io = Server<ClientToServerEvents, ServerToClientEvents<Order | PublicOrder>>;
 
 export interface SinkDeps {
   io: Io;
@@ -14,6 +15,7 @@ export interface SinkDeps {
   replyOnFacebook?: (sessionId: string, fbCommentId: string, text: string) => Promise<void>;
   /** Link trang đơn công khai, ví dụ `${PUBLIC_WEB_URL}/o/${token}`. */
   orderUrl: (publicToken: string) => string;
+  onRiskAlert: (alert: RiskAlert) => void;
   log?: (msg: string, extra?: unknown) => void;
 }
 
@@ -25,8 +27,11 @@ export function emitOrderPrivate(
 ): void {
   io.to(sellerRoom(roomCode))
     .to(buyerRoom(order.sessionId, order.buyer.externalId))
-    .to(orderRoom(order.publicToken))
     .emit(event, order);
+  io.to(orderRoom(order.publicToken))
+    .except(sellerRoom(roomCode))
+    .except(buyerRoom(order.sessionId, order.buyer.externalId))
+    .emit(event, toPublicOrder(order, roomCode));
 }
 
 /**
@@ -77,9 +82,7 @@ export function createSocketSink(deps: SinkDeps): PipelineSink {
     },
 
     onNeedsReview(sessionId, comment, op) {
-      const room = deps.roomOf(sessionId);
-      if (!room) return;
-      io.to(sellerRoom(room)).emit("risk:alert", {
+      deps.onRiskAlert({
         id: `review_${comment.id}`,
         sessionId,
         orderId: op.orderId,

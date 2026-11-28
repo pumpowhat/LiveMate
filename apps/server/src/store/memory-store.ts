@@ -9,6 +9,7 @@ import { InMemoryBuyerHistoryStore } from "../risk/history.ts";
 import { ConflictError, NotFoundError, ValidationError } from "./errors.ts";
 import {
   cloneProduct,
+  assertCurrentPaymentOrder,
   computeSessionSummary,
   evaluateOrderTransition,
   isOpenStatus,
@@ -566,19 +567,20 @@ export class MemoryBackendStore implements BackendStore {
     }
   }
 
-  async transitionOrderById(orderId: string, action: OrderActionKind): Promise<OrderTransitionOutcome> {
+  async transitionOrderById(orderId: string, action: OrderActionKind, expectedUpdatedAt?: string): Promise<OrderTransitionOutcome> {
     const sid = this.sessionIdByOrderId.get(orderId);
     if (!sid) throw new NotFoundError("Không tìm thấy đơn hàng");
     const b = this.buckets.get(sid);
     const order = b?.orders.get(orderId);
     if (!b || !order) throw new NotFoundError("Không tìm thấy đơn hàng");
+    assertCurrentPaymentOrder(action, order.updatedAt, expectedUpdatedAt);
     return this.applyTransition(b, order, action);
   }
 
-  async transitionOrderByPublicToken(publicToken: string, action: "report_payment"): Promise<OrderTransitionOutcome> {
+  async transitionOrderByPublicToken(publicToken: string, action: "report_payment", expectedUpdatedAt: string): Promise<OrderTransitionOutcome> {
     const orderId = this.orderIdByToken.get(publicToken);
     if (!orderId) throw new NotFoundError("Không tìm thấy đơn hàng");
-    return this.transitionOrderById(orderId, action);
+    return this.transitionOrderById(orderId, action, expectedUpdatedAt);
   }
 
   private applyTransition(bucket: SessionBucket, order: Order, action: OrderActionKind): OrderTransitionOutcome {
@@ -632,7 +634,10 @@ export class MemoryBackendStore implements BackendStore {
     } else {
       order.items[index] = item;
     }
-    if (opts.sellerEdited) order.sellerEdited = true;
+    if (opts.sellerEdited) {
+      order.sellerEdited = true;
+      order.status = "pending_payment";
+    }
     return this.saveOrderInBucket(bucket, order, opts.commentId);
   }
 

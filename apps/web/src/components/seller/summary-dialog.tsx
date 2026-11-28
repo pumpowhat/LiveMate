@@ -55,14 +55,15 @@ export function SummaryDialog({ open, onOpenChange, sessionId, onOrderUpdated }:
     if (open) void loadSummary();
   }, [open, loadSummary]);
 
-  async function handleQuickConfirm(orderId: string) {
+  async function handleQuickConfirm(orderId: string, updatedAt: string) {
     setBusyOrderId(orderId);
     try {
-      const res = await api.orders.confirm(orderId);
+      const res = await api.orders.confirm(orderId, updatedAt);
       onOrderUpdated(res.order);
       toast({ title: "Đã xác nhận thanh toán", description: `Đơn #${res.order.code}`, variant: "success" });
       await loadSummary();
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) void loadSummary();
       toast({
         title: "Không thể xác nhận",
         description: err instanceof ApiError ? err.message : "Đã có lỗi xảy ra.",
@@ -192,13 +193,15 @@ export function SummaryDialog({ open, onOpenChange, sessionId, onOrderUpdated }:
                         >
                           <Bell className="h-3.5 w-3.5" /> Nhắc TT
                         </Button>
-                        <Button
-                          size="sm"
-                          disabled={busyOrderId === o.id}
-                          onClick={() => handleQuickConfirm(o.id)}
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Xác nhận
-                        </Button>
+                        {o.status === "awaiting_confirmation" && (
+                          <Button
+                            size="sm"
+                            disabled={busyOrderId === o.id}
+                            onClick={() => handleQuickConfirm(o.id, o.updatedAt)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Xác nhận
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

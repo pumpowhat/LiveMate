@@ -56,7 +56,7 @@ export function evaluateOrderTransition(current: OrderStatus, action: OrderActio
       return { nextStatus: "awaiting_confirmation", restoreStock: false, changed: true };
     }
     case "confirm": {
-      if (current !== "pending_payment" && current !== "awaiting_confirmation") {
+      if (current !== "awaiting_confirmation") {
         throw new ConflictError(`Không thể xác nhận thanh toán cho đơn ở trạng thái ${current}`);
       }
       return { nextStatus: "paid", restoreStock: false, changed: true };
@@ -79,6 +79,12 @@ export function evaluateOrderTransition(current: OrderStatus, action: OrderActio
       }
       return { nextStatus: current, restoreStock: false, changed: false };
     }
+  }
+}
+
+export function assertCurrentPaymentOrder(action: OrderActionKind, updatedAt: string, expectedUpdatedAt?: string): void {
+  if ((action === "report_payment" || action === "confirm") && updatedAt !== expectedUpdatedAt) {
+    throw new ConflictError("Đơn hàng đã thay đổi. Vui lòng tải lại và kiểm tra thông tin thanh toán.");
   }
 }
 

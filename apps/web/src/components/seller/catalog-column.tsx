@@ -130,7 +130,12 @@ export function CatalogColumn({
     setSaving(true);
     try {
       if (editing) {
-        const res = await api.products.update(session.id, editing.id, payload);
+        const { stock, sizes, ...fields } = payload;
+        const res = await api.products.update(session.id, editing.id, {
+          ...fields,
+          ...(sizesText === editing.sizes.join(", ") ? {} : { sizes }),
+          ...(stockText === formatStockInput(editing) ? {} : { stock }),
+        });
         onProductUpdated(res.product);
         toast({ title: "Đã cập nhật sản phẩm", description: `${res.product.code} - ${res.product.name}`, variant: "success" });
       } else {

@@ -32,11 +32,6 @@ describe("evaluateOrderTransition", () => {
       restoreStock: false,
       changed: true,
     });
-    expect(evaluateOrderTransition("pending_payment", "confirm")).toEqual({
-      nextStatus: "paid",
-      restoreStock: false,
-      changed: true,
-    });
     expect(evaluateOrderTransition("paid", "deliver")).toEqual({
       nextStatus: "delivered",
       restoreStock: false,
@@ -53,6 +48,7 @@ describe("evaluateOrderTransition", () => {
     ["paid", "report_payment"],
     ["delivered", "report_payment"],
     ["cancelled", "report_payment"],
+    ["pending_payment", "confirm"],
     ["paid", "confirm"],
     ["delivered", "confirm"],
     ["cancelled", "confirm"],
@@ -99,11 +95,11 @@ describe("MemoryBackendStore order lifecycle & stock restoration", () => {
     expect(patched.total).toBe(750_000);
     expect((await store.getProductById(session.id, v03.id))?.stock.M).toBe(2);
 
-    const reported = await store.transitionOrderByPublicToken(order1.publicToken, "report_payment");
+    const reported = await store.transitionOrderByPublicToken(order1.publicToken, "report_payment", patched.updatedAt);
     expect(reported.order.status).toBe("awaiting_confirmation");
     expect(reported.changed).toBe(true);
 
-    const confirmed = await store.transitionOrderById(order1.id, "confirm");
+    const confirmed = await store.transitionOrderById(order1.id, "confirm", reported.order.updatedAt);
     expect(confirmed.order.status).toBe("paid");
 
     const delivered = await store.transitionOrderById(order1.id, "deliver");

@@ -24,6 +24,7 @@ export type {
   OrderItem,
   OrderStatus,
   Product,
+  PublicOrder,
   RiskAlert,
   RiskKind,
   Seller,
@@ -37,6 +38,8 @@ export interface SessionDetail {
   catalog: Product[];
   orders: Order[];
   comments: Comment[];
+  verdicts: CommentVerdictEvent[];
+  risks: RiskAlert[];
 }
 
 export interface TopProductSummary {

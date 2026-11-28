@@ -11,20 +11,20 @@ import { toast } from "@/components/ui/use-toast";
 import { api, ApiError } from "@/lib/api";
 import { formatDateTime, formatVnd, ORDER_STATUS_META } from "@/lib/format";
 import { createLiveMateSocket } from "@/lib/socket";
-import type { Order } from "@/lib/types";
+import type { PublicOrder } from "@/lib/types";
 
 export default function PublicOrderPage() {
   const params = useParams<{ token: string }>();
   const token = decodeURIComponent(params.token ?? "");
 
-  const [order, setOrder] = React.useState<Order | null>(null);
+  const [order, setOrder] = React.useState<PublicOrder | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [reporting, setReporting] = React.useState(false);
   const [qrError, setQrError] = React.useState(false);
   const [socketState, setSocketState] = React.useState<"connecting" | "connected" | "error">("connecting");
 
-  const applyOrderIfNewer = React.useCallback((next: Order) => {
+  const applyOrderIfNewer = React.useCallback((next: PublicOrder) => {
     setOrder((prev) => {
       if (!prev) return next;
       const prevTime = Date.parse(prev.updatedAt);
@@ -55,7 +55,7 @@ export default function PublicOrderPage() {
   React.useEffect(() => {
     if (!token) return;
     let disposed = false;
-    const socket = createLiveMateSocket();
+    const socket = createLiveMateSocket<PublicOrder>();
 
     const joinOrder = () => {
       socket.emit("order:join", { publicToken: token }, (ack) => {
@@ -94,9 +94,10 @@ export default function PublicOrderPage() {
   }, [token, loadOrder, applyOrderIfNewer]);
 
   async function handleReportPayment() {
+    if (!order) return;
     setReporting(true);
     try {
-      const res = await api.orders.reportPayment(token);
+      const res = await api.orders.reportPayment(token, order.updatedAt);
       applyOrderIfNewer(res.order);
       toast({
         title: "Đã gửi báo cáo chuyển khoản",
@@ -104,6 +105,7 @@ export default function PublicOrderPage() {
         variant: "success",
       });
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) void loadOrder();
       toast({
         title: "Không thể báo đã chuyển khoản",
         description: err instanceof ApiError ? err.message : "Đã có lỗi xảy ra.",
@@ -178,7 +180,7 @@ export default function PublicOrderPage() {
             <h2 className="text-sm font-semibold">Chi tiết sản phẩm</h2>
             <ul className="divide-y rounded-lg border">
               {order.items.map((item, idx) => (
-                <li key={`${item.productId}-${item.size ?? "none"}-${idx}`} className="flex items-center justify-between gap-2 p-3 text-sm">
+                <li key={`${item.productCode}-${item.size ?? "none"}-${idx}`} className="flex items-center justify-between gap-2 p-3 text-sm">
                   <div className="min-w-0">
                     <p className="font-medium break-words">
                       {item.productCode} — {item.productName}
@@ -208,7 +210,7 @@ export default function PublicOrderPage() {
                 <div className="rounded-lg border border-dashed bg-background p-4 text-xs text-muted-foreground">
                   <ShieldAlert className="mx-auto mb-1.5 h-5 w-5 text-amber-600" />
                   Shop chưa cấu hình tài khoản VietQR trên máy chủ. Vui lòng chuyển khoản theo hướng dẫn của shop với nội dung{" "}
-                  <strong className="text-foreground">LM {order.code}</strong>.
+                  <strong className="text-foreground">{order.paymentReference}</strong>.
                 </div>
               ) : (
                 <div className="mx-auto inline-block rounded-xl border bg-white p-3 shadow-sm">
@@ -223,7 +225,7 @@ export default function PublicOrderPage() {
               )}
 
               <p className="text-xs text-muted-foreground">
-                Nội dung chuyển khoản: <strong className="text-foreground">LM {order.code}</strong>.
+                Nội dung chuyển khoản: <strong className="text-foreground">{order.paymentReference}</strong>.
                 <br />
                 Trang này chỉ hiển thị mã QR đối soát, không tự động thực hiện thanh toán.
               </p>

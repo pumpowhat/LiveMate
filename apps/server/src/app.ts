@@ -7,12 +7,11 @@ import {
   buyerRoom,
   orderRoom,
   sellerRoom,
-  type ClientToServerEvents,
   type Comment,
   type LiveSession,
   type Product,
+  type RiskAlert,
   type Seller,
-  type ServerToClientEvents,
 } from "@livemate/shared";
 import { verifySocketToken } from "./auth/crypto.ts";
 import { CommentPoller } from "./facebook/poller.ts";
@@ -86,7 +85,7 @@ export function createApp(cfg: AppConfig) {
   app.use("/api/dev", (_req, res, next) => (cfg.devRoutes ? next() : void res.status(404).json({ error: "Không có route này" })));
 
   const httpServer = createServer(app);
-  const io: Io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
+  const io: Io = new Server(httpServer, {
     cors: { origin: cfg.webOrigin },
   });
 
@@ -164,30 +163,36 @@ export function createApp(cfg: AppConfig) {
 
   const orderUrl = (token: string) => `${cfg.publicWebUrl.replace(/\/+$/, "")}/o/${token}`;
 
+  // Lưu trước khi phát để tải lại trang ngay sau khi nhận cảnh báo vẫn đọc được cảnh báo.
+  const onRiskAlert = (alert: RiskAlert) => {
+    void store.saveRiskAlert(alert).then(() => {
+      const room = rooms.get(alert.sessionId);
+      if (room) io.to(sellerRoom(room)).emit("risk:alert", alert);
+    }).catch((err) => console.error("[risk] save failed", err));
+  };
+
   const sink = createSocketSink({
     io,
     roomOf: (id) => rooms.get(id),
     isLegacyPublicDemo: (id) => Boolean(cfg.devRoutes && id === demoSession.id),
     orderUrl,
+    onRiskAlert,
     ...(replyOnFacebook ? { replyOnFacebook } : {}),
   });
 
   // Cảnh báo rủi ro: chỉ người bán thấy.
   const risk = new RiskEngine({
     history: store.buyerHistory,
-    emit: (alert) => {
-      void store.saveRiskAlert(alert).catch((err) => console.error("[risk] save failed", err));
-      const room = rooms.get(alert.sessionId);
-      if (room) io.to(sellerRoom(room)).emit("risk:alert", alert);
-    },
+    emit: onRiskAlert,
   });
 
   const batches: BatchMetrics[] = [];
   const withRisk: PipelineSink = {
     ...sink,
     onVerdict(sessionId, commentId, verdict, orderId) {
-      sink.onVerdict(sessionId, commentId, verdict, orderId);
-      void store.updateCommentVerdict(commentId, verdict, orderId).catch((err) => console.error("[comment] verdict failed", err));
+      void store.updateCommentVerdict(commentId, verdict, orderId)
+        .then(() => sink.onVerdict(sessionId, commentId, verdict, orderId))
+        .catch((err) => console.error("[comment] verdict failed", err));
     },
     onOrder(sessionId, order, created, comment) {
       sink.onOrder(sessionId, order, created, comment);
@@ -470,7 +475,7 @@ export function createApp(cfg: AppConfig) {
           ack?.({ ok: false, error: "Thiếu mã đơn hàng" });
           return;
         }
-        const { order, session, changed } = await store.transitionOrderByPublicToken(publicToken, "report_payment");
+        const { order, session, changed } = await store.transitionOrderByPublicToken(publicToken, "report_payment", p.updatedAt);
         rememberSession(session);
         if (changed) {
           risk.onPaymentReported(order);

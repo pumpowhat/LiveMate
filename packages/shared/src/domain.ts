@@ -85,6 +85,12 @@ export const Order = z.object({
 });
 export type Order = z.infer<typeof Order>;
 
+export type PublicOrder = Pick<Order, "code" | "total" | "status" | "publicToken" | "createdAt" | "updatedAt"> & {
+  buyer: Pick<Buyer, "displayName">;
+  items: Omit<OrderItem, "productId">[];
+  paymentReference: string;
+};
+
 export const RiskKind = z.enum([
   "buyer_history_boom", // khách từng boom đơn
   "unusual_quantity", // chốt số lượng / tần suất bất thường

@@ -8,6 +8,7 @@ import type {
   OrderLinePatch,
   Product,
   ProductInput,
+  PublicOrder,
   PublicRoomResponse,
   Seller,
   SessionDetail,
@@ -140,9 +141,10 @@ export const api = {
       requestJson<{ order: Order }>(`/api/orders/${encodeURIComponent(orderId)}/cancel`, {
         method: "POST",
       }),
-    confirm: (orderId: string) =>
+    confirm: (orderId: string, updatedAt: string) =>
       requestJson<{ order: Order }>(`/api/orders/${encodeURIComponent(orderId)}/confirm`, {
         method: "POST",
+        body: JSON.stringify({ updatedAt }),
       }),
     deliver: (orderId: string) =>
       requestJson<{ order: Order }>(`/api/orders/${encodeURIComponent(orderId)}/deliver`, {
@@ -153,10 +155,11 @@ export const api = {
         method: "POST",
       }),
     getPublic: (token: string) =>
-      requestJson<{ order: Order }>(`/api/orders/${encodeURIComponent(token)}`),
-    reportPayment: (token: string) =>
-      requestJson<{ order: Order }>(`/api/orders/${encodeURIComponent(token)}/report-payment`, {
+      requestJson<{ order: PublicOrder }>(`/api/orders/${encodeURIComponent(token)}`),
+    reportPayment: (token: string, updatedAt: string) =>
+      requestJson<{ order: PublicOrder }>(`/api/orders/${encodeURIComponent(token)}/report-payment`, {
         method: "POST",
+        body: JSON.stringify({ updatedAt }),
       }),
   },
 

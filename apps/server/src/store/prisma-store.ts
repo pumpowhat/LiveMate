@@ -10,6 +10,7 @@ import { mapOrderRow, mapProductRow, mapSessionRow, PrismaOrderGateway } from ".
 import { PrismaBuyerHistoryStore } from "../risk/prisma-history.ts";
 import { ConflictError, NotFoundError, ValidationError } from "./errors.ts";
 import {
+  assertCurrentPaymentOrder,
   computeSessionSummary,
   evaluateOrderTransition,
   isOpenStatus,
@@ -505,7 +506,7 @@ export class PrismaBackendStore implements BackendStore {
 
   async updateCommentVerdict(commentId: string, verdict: CommentVerdict, orderId?: string): Promise<void> {
     await this.prisma.comment.updateMany({
-      where: { id: commentId },
+      where: { id: commentId, ...(verdict === "queued" ? { verdict: null } : {}) },
       data: { verdict, verdictOrderId: orderId ?? null },
     });
   }
@@ -787,6 +788,7 @@ export class PrismaBackendStore implements BackendStore {
         where: { id: order.id },
         data: {
           total,
+          status: "pending_payment",
           sellerEdited: true,
           updatedAt: new Date(Math.max(Date.now(), order.updatedAt.getTime() + 1)),
         },
@@ -796,7 +798,7 @@ export class PrismaBackendStore implements BackendStore {
     });
   }
 
-  async transitionOrderById(orderId: string, action: OrderActionKind): Promise<OrderTransitionOutcome> {
+  async transitionOrderById(orderId: string, action: OrderActionKind, expectedUpdatedAt?: string): Promise<OrderTransitionOutcome> {
     return this.prisma.$transaction(async (tx) => {
       const meta = await tx.order.findUnique({ where: { id: orderId }, select: { sessionId: true } });
       if (!meta) throw new NotFoundError("Không tìm thấy đơn hàng");
@@ -807,11 +809,11 @@ export class PrismaBackendStore implements BackendStore {
         include: { session: true, buyer: true, items: { orderBy: { sortOrder: "asc" } } },
       });
       if (!orderRow) throw new NotFoundError("Không tìm thấy đơn hàng");
-      return this.applyTransitionTx(tx, orderRow, action);
+      return this.applyTransitionTx(tx, orderRow, action, expectedUpdatedAt);
     });
   }
 
-  async transitionOrderByPublicToken(publicToken: string, action: "report_payment"): Promise<OrderTransitionOutcome> {
+  async transitionOrderByPublicToken(publicToken: string, action: "report_payment", expectedUpdatedAt: string): Promise<OrderTransitionOutcome> {
     return this.prisma.$transaction(async (tx) => {
       const meta = await tx.order.findUnique({ where: { publicToken }, select: { sessionId: true } });
       if (!meta) throw new NotFoundError("Không tìm thấy đơn hàng");
@@ -822,7 +824,7 @@ export class PrismaBackendStore implements BackendStore {
         include: { session: true, buyer: true, items: { orderBy: { sortOrder: "asc" } } },
       });
       if (!orderRow) throw new NotFoundError("Không tìm thấy đơn hàng");
-      return this.applyTransitionTx(tx, orderRow, action);
+      return this.applyTransitionTx(tx, orderRow, action, expectedUpdatedAt);
     });
   }
 
@@ -830,7 +832,9 @@ export class PrismaBackendStore implements BackendStore {
     tx: Prisma.TransactionClient,
     orderRow: Prisma.OrderGetPayload<{ include: { session: true; buyer: true; items: true } }>,
     action: OrderActionKind,
+    expectedUpdatedAt?: string,
   ): Promise<OrderTransitionOutcome> {
+    assertCurrentPaymentOrder(action, orderRow.updatedAt.toISOString(), expectedUpdatedAt);
     const previousStatus = orderRow.status;
     const res = evaluateOrderTransition(previousStatus, action);
 

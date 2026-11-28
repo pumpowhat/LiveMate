@@ -99,6 +99,6 @@ export interface BackendStore {
     line: LineRef,
     patch: { productId?: string; size?: string | null; qty?: number },
   ): Promise<Order>;
-  transitionOrderById(orderId: string, action: OrderActionKind): Promise<OrderTransitionOutcome>;
-  transitionOrderByPublicToken(publicToken: string, action: "report_payment"): Promise<OrderTransitionOutcome>;
+  transitionOrderById(orderId: string, action: OrderActionKind, expectedUpdatedAt?: string): Promise<OrderTransitionOutcome>;
+  transitionOrderByPublicToken(publicToken: string, action: "report_payment", expectedUpdatedAt: string): Promise<OrderTransitionOutcome>;
 }

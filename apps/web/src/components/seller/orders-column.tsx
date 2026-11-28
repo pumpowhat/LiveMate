@@ -259,14 +259,14 @@ export function OrdersColumn({ session, catalog, orders, onOrderUpdated }: Order
                       </>
                     )}
 
-                    {(order.status === "pending_payment" || order.status === "awaiting_confirmation") && (
+                    {order.status === "awaiting_confirmation" && (
                       <Button
                         size="sm"
                         disabled={isBusy}
                         onClick={() =>
                           runOrderAction(
                             order.id,
-                            () => api.orders.confirm(order.id),
+                            () => api.orders.confirm(order.id, order.updatedAt),
                             "Đã xác nhận thanh toán",
                           )
                         }

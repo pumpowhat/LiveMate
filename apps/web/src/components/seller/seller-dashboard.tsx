@@ -186,6 +186,24 @@ export function SellerDashboard() {
           setOrders(detail.orders);
           setComments([...detail.comments].reverse());
         }
+        setVerdicts((prev) => {
+          const merged = options?.merge ? { ...prev } : {} as typeof prev;
+          for (const { commentId, verdict, orderId } of detail.verdicts) {
+            const current = merged[commentId];
+            if (verdict === "queued" && current && current.verdict !== "queued") continue;
+            merged[commentId] = { verdict, orderId };
+          }
+          return merged;
+        });
+        setAlerts((prev) => {
+          const byId = new Map(detail.risks.map((alert) => [alert.id, alert]));
+          if (options?.merge) {
+            for (const alert of prev) byId.set(alert.id, alert);
+          }
+          return Array.from(byId.values())
+            .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+            .slice(0, 50);
+        });
       } catch (err) {
         if (selectedSessionIdRef.current !== sessionId || detailRequestSeqRef.current !== reqSeq) {
           return;
@@ -302,10 +320,11 @@ export function SellerDashboard() {
 
     socket.on("comment:verdict", (p) => {
       if (selectedSessionIdRef.current !== sessionId) return;
-      setVerdicts((prev) => ({
-        ...prev,
-        [p.commentId]: { verdict: p.verdict, orderId: p.orderId },
-      }));
+      setVerdicts((prev) => {
+        const current = prev[p.commentId];
+        if (p.verdict === "queued" && current && current.verdict !== "queued") return prev;
+        return { ...prev, [p.commentId]: { verdict: p.verdict, orderId: p.orderId } };
+      });
     });
 
     socket.on("reply:new", (reply) => {

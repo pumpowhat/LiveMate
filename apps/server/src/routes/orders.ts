@@ -1,11 +1,15 @@
-import { buyerRoom, sellerRoom, type Order } from "@livemate/shared";
+import { buyerRoom, sellerRoom } from "@livemate/shared";
 import express from "express";
+import { z } from "zod";
+import { paymentReference, toPublicOrder } from "../payment/public-order.ts";
 import { vietQrPngBuffer } from "../payment/vietqr.ts";
 import { emitOrderPrivate, type Io } from "../realtime/sink.ts";
 import type { RiskEngine } from "../risk/engine.ts";
 import { ForbiddenError, NotFoundError, ValidationError } from "../store/errors.ts";
 import type { BackendStore } from "../store/types.ts";
-import { withSellerAuth } from "./helpers.ts";
+import { parseBody, withSellerAuth } from "./helpers.ts";
+
+const PaymentBody = z.object({ updatedAt: z.iso.datetime() });
 
 export function createOrdersRouter(deps: {
   store: BackendStore;
@@ -27,6 +31,14 @@ export function createOrdersRouter(deps: {
       throw new ForbiddenError("Bạn không có quyền thao tác trên đơn hàng này");
     }
     return { order, session };
+  }
+
+  async function requirePublicOrder(token: string) {
+    const order = await store.getOrderByPublicToken(token);
+    if (!order) throw new NotFoundError("Không tìm thấy đơn hàng");
+    const session = await store.getSessionById(order.sessionId);
+    if (!session) throw new NotFoundError("Không tìm thấy phiên live");
+    return { order, roomCode: session.roomCode };
   }
 
   router.post(
@@ -58,7 +70,8 @@ export function createOrdersRouter(deps: {
     withSellerAuth(store, async (req, res, { seller }) => {
       const orderId = String(req.params.orderId ?? "");
       await requireOwnedOrder(orderId, seller.id);
-      const { order, session } = await store.transitionOrderById(orderId, "confirm");
+      const { updatedAt } = parseBody(PaymentBody, req.body);
+      const { order, session } = await store.transitionOrderById(orderId, "confirm", updatedAt);
       risk.onPaymentConfirmed(order.id);
       emitOrderPrivate(io, session.roomCode, "order:updated", order);
       emitOrderPrivate(io, session.roomCode, "payment:confirmed", order);
@@ -107,9 +120,8 @@ export function createOrdersRouter(deps: {
   // Public capability routes via unguessable publicToken
   router.get("/orders/:token", async (req, res, next) => {
     try {
-      const order: Order | null = await store.getOrderByPublicToken(String(req.params.token ?? ""));
-      if (!order) throw new NotFoundError("Không tìm thấy đơn hàng");
-      res.json({ order });
+      const { order, roomCode } = await requirePublicOrder(String(req.params.token ?? ""));
+      res.json({ order: toPublicOrder(order, roomCode) });
     } catch (err) {
       next(err);
     }
@@ -118,13 +130,14 @@ export function createOrdersRouter(deps: {
   router.post("/orders/:token/report-payment", async (req, res, next) => {
     try {
       const token = String(req.params.token ?? "");
-      const { order, session, changed } = await store.transitionOrderByPublicToken(token, "report_payment");
+      const { updatedAt } = parseBody(PaymentBody, req.body);
+      const { order, session, changed } = await store.transitionOrderByPublicToken(token, "report_payment", updatedAt);
       if (changed) {
         risk.onPaymentReported(order);
         emitOrderPrivate(io, session.roomCode, "order:updated", order);
         emitOrderPrivate(io, session.roomCode, "payment:reported", order);
       }
-      res.json({ order });
+      res.json({ order: toPublicOrder(order, session.roomCode) });
     } catch (err) {
       next(err);
     }
@@ -136,15 +149,15 @@ export function createOrdersRouter(deps: {
         res.status(503).json({ error: "Chưa cấu hình VIETQR_ACCOUNT_NUMBER" });
         return;
       }
-      const order = await store.getOrderByPublicToken(String(req.params.token ?? ""));
-      if (!order || order.status === "cancelled") {
+      const { order, roomCode } = await requirePublicOrder(String(req.params.token ?? ""));
+      if (order.status === "cancelled") {
         res.status(404).json({ error: "Không tìm thấy đơn" });
         return;
       }
       if (order.total <= 0) {
         throw new ValidationError("Đơn hàng chưa có giá trị thanh toán");
       }
-      const png = await vietQrPngBuffer({ ...deps.vietqr, amount: order.total, addInfo: `LM ${order.code}` });
+      const png = await vietQrPngBuffer({ ...deps.vietqr, amount: order.total, addInfo: paymentReference(roomCode, order.code) });
       res.type("png").set("Cache-Control", "no-store").send(png);
     } catch (err) {
       next(err);

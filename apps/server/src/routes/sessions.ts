@@ -197,6 +197,7 @@ export function createSessionsRouter(deps: {
       const session = await requireOwnedSession(store, sessionId, seller.id);
       const { line, patch } = parseBody(PatchOrderItemBody, req.body ?? {});
       const order: Order = await store.sellerPatchOrderItem(sessionId, orderId, line, patch);
+      deps.risk.clearPaymentTimer(order.id);
       deps.risk.onOrderChanged(order);
       emitOrderPrivate(io, session.roomCode, "order:updated", order);
       res.json({ order });
