@@ -1,7 +1,7 @@
 import type { Comment, CommentVerdict, Order } from "@livemate/shared";
 import { extractActions } from "./extract.ts";
 import { prefilter } from "./filter.ts";
-import type { BuyerRef, OrderGateway } from "./gateway.ts";
+import { OrderLockedError, type BuyerRef, type OrderGateway } from "./gateway.ts";
 import type { LlmClient } from "./llm.ts";
 import type { PromptOrderLine } from "./prompt.ts";
 import { createResolver, type Operation, type ReplyMeta, type ReplyReason } from "./rules.ts";
@@ -175,8 +175,27 @@ export class CommentPipeline {
         const comment = byId.get(action.commentId)!;
         handled.add(comment.id);
         for (const op of resolver.resolve(action)) {
-          const order = await this.execute(sessionId, comment, op);
-          if (order) resolver.setOrder(comment.buyerExternalId, order);
+          try {
+            const order = await this.execute(sessionId, comment, op);
+            if (order) resolver.setOrder(comment.buyerExternalId, order);
+          } catch (err) {
+            // Lỗi của một thao tác chỉ ảnh hưởng bình luận đó, không bỏ cả lô.
+            if (err instanceof OrderLockedError) {
+              // Trạng thái đơn đổi trong lúc chờ LLM (shop sửa tay / khách báo chuyển tiền).
+              await this.execute(sessionId, comment, {
+                kind: "needs_review",
+                commentId: comment.id,
+                buyer: comment.buyerExternalId,
+                orderId: err.orderId,
+                action,
+                reason: err.reason,
+              });
+            } else {
+              this.sink.onVerdict(sessionId, comment.id, "unparsed");
+              this.sink.onError(sessionId, err, [comment]);
+            }
+            break;
+          }
         }
       }
       // LLM không trả hành động nào = khen / chào lọt qua bộ lọc nhanh, không phải lỗi.

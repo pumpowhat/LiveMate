@@ -164,3 +164,58 @@ test("forwards an ask action's reply text to the sink", async () => {
   expect(sink.onVerdict).toHaveBeenLastCalledWith(session.id, "c1", "ask");
   expect(sink.onOrder).not.toHaveBeenCalled();
 });
+
+/** LLM giả chạy `during` trong lúc "suy nghĩ": giả lập trạng thái đơn đổi khi đang chờ LLM. */
+class RacingLlm implements LlmClient {
+  readonly name = "racing";
+  constructor(private readonly response: string, private readonly during: () => void) {}
+  async completeJson(): Promise<string> {
+    this.during();
+    return this.response;
+  }
+}
+
+test("sends a change to review when the order is locked while the LLM is running", async () => {
+  const cases = [
+    { lock: { sellerEdited: true }, reason: "seller_edited", action: { action: "update", commentId: "c1", buyer: "buyer", item: "V03", size: "L", qty: null, newItem: null } },
+    { lock: { status: "awaiting_confirmation" as const }, reason: "payment_reported", action: { action: "create", commentId: "c1", buyer: "buyer", item: "V03", size: "L", qty: 1 } },
+  ];
+  for (const { lock, reason, action } of cases) {
+    let orderId = "";
+    const llm = new RacingLlm(JSON.stringify({ actions: [action] }), () => gateway.patchOrder(orderId, lock));
+    const { gateway, pipeline, sink } = setup(llm);
+    orderId = gateway.seedOrder({ externalId: "buyer", name: "Lan", source: "room" }, [{ item: "V03", size: "M", qty: 1 }]).id;
+
+    await pipeline.push(comment("c1", "đổi sang L nha shop"));
+    await pipeline.drain(session.id);
+
+    expect(sink.onNeedsReview.mock.calls).toEqual([
+      [session.id, expect.objectContaining({ id: "c1" }), expect.objectContaining({ kind: "needs_review", orderId, reason })],
+    ]);
+    expect(sink.onVerdict.mock.calls.at(-1)).toEqual([session.id, "c1", "unparsed", orderId]);
+    expect(sink.onOrder).not.toHaveBeenCalled();
+    expect(sink.onError).not.toHaveBeenCalled();
+    expect(gateway.listOrders()[0]?.items).toMatchObject([{ size: "M", qty: 1 }]);
+  }
+});
+
+test("a failing operation only marks its own comment unparsed and the batch continues", async () => {
+  let seededId = "";
+  // Shop bấm hủy đơn trong lúc LLM đang chạy, nên thao tác sửa lỗi "No open order".
+  const llm = new RacingLlm(JSON.stringify({ actions: [
+    { action: "update", commentId: "c1", buyer: "buyer", item: "V03", size: "L", qty: null, newItem: null },
+    { action: "create", commentId: "c2", buyer: "b2", item: "V03", size: "M", qty: 1 },
+  ] }), () => gateway.patchOrder(seededId, { status: "cancelled" }));
+  const { gateway, pipeline, sink } = setup(llm);
+  seededId = gateway.seedOrder({ externalId: "buyer", name: "Lan", source: "room" }, [{ item: "V03", size: "M", qty: 1 }]).id;
+  const other = { ...comment("c2", "chốt V03 size M"), buyerExternalId: "b2", buyerName: "Mai" };
+
+  await pipeline.push(comment("c1", "đổi sang L"));
+  await pipeline.push(other);
+  await pipeline.drain(session.id);
+
+  expect(sink.onError.mock.calls).toEqual([[session.id, expect.any(Error), [expect.objectContaining({ id: "c1" })]]]);
+  expect(sink.onVerdict.mock.calls).toContainEqual([session.id, "c1", "unparsed"]);
+  expect(sink.onVerdict.mock.calls).toContainEqual([session.id, "c2", "create", expect.any(String)]);
+  expect(gateway.listOrders().filter((o) => o.buyer.externalId === "b2")).toHaveLength(1);
+});

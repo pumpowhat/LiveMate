@@ -1,5 +1,5 @@
 import type { LiveSession, Order, OrderItem, Product } from "@livemate/shared";
-import type { BuyerRef, LineRef, OrderGateway, SessionContext } from "./gateway.ts";
+import { aiLockReason, OrderLockedError, type BuyerRef, type LineRef, type OrderGateway, type SessionContext } from "./gateway.ts";
 
 const isOpen = (order: Order) => order.status === "pending_payment" || order.status === "awaiting_confirmation";
 const sameLine = (item: LineRef, line: LineRef) => item.productId === line.productId && item.size === line.size;
@@ -28,6 +28,13 @@ export class InMemoryOrderGateway implements OrderGateway {
     return this.addLines(buyer, items);
   }
 
+  /** Test: giả lập người bán sửa tay / khách báo chuyển tiền. */
+  patchOrder(id: string, patch: Partial<Pick<Order, "status" | "sellerEdited">>): void {
+    const order = this.orders.get(id);
+    if (!order) throw new Error(`Unknown order: ${id}`);
+    Object.assign(order, patch);
+  }
+
   listOrders(): Order[] {
     return structuredClone([...this.orders.values()]);
   }
@@ -54,6 +61,9 @@ export class InMemoryOrderGateway implements OrderGateway {
   async addItem(sessionId: string, buyer: BuyerRef, line: LineRef & { qty: number }, commentId: string): Promise<Order> {
     this.requireSession(sessionId);
     const item = this.makeItem(this.requireProduct(line.productId), line.size, line.qty);
+    const existing = [...this.orders.values()].find((o) => isOpen(o) && o.buyer.externalId === buyer.externalId);
+    const locked = existing && aiLockReason(existing, "add");
+    if (existing && locked) throw new OrderLockedError(existing.id, locked);
     return this.addLines(buyer, [item], commentId);
   }
 
@@ -63,7 +73,7 @@ export class InMemoryOrderGateway implements OrderGateway {
     patch: { productId?: string; size?: string | null; qty?: number },
     commentId: string,
   ): Promise<Order> {
-    const order = this.requireOpenOrder(orderId);
+    const order = this.requireAiChangeable(orderId);
     const index = this.requireLineIndex(order, line);
     const old = order.items[index]!;
     const product = this.requireProduct(patch.productId ?? old.productId);
@@ -85,7 +95,7 @@ export class InMemoryOrderGateway implements OrderGateway {
   }
 
   async removeItem(orderId: string, line: LineRef | null, commentId: string): Promise<Order> {
-    const order = this.requireOpenOrder(orderId);
+    const order = this.requireAiChangeable(orderId);
     const removed = line === null ? order.items : order.items.splice(this.requireLineIndex(order, line), 1);
     for (const item of removed) this.adjustStock(this.requireProduct(item.productId), item.size, item.qty);
     if (line === null || order.items.length === 0) order.status = "cancelled";
@@ -172,6 +182,13 @@ export class InMemoryOrderGateway implements OrderGateway {
   private requireOpenOrder(id: string): Order {
     const order = this.orders.get(id);
     if (!order || !isOpen(order)) throw new Error(`No open order: ${id}`);
+    return order;
+  }
+
+  private requireAiChangeable(id: string): Order {
+    const order = this.requireOpenOrder(id);
+    const locked = aiLockReason(order, "change");
+    if (locked) throw new OrderLockedError(order.id, locked);
     return order;
   }
 
