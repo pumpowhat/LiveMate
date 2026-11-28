@@ -273,8 +273,6 @@ pnpm --filter @livemate/server exec tsx scripts/fb-spike.ts --live <page-id>
 
 Với PostgreSQL, đặt `DATABASE_URL` trong `apps/server/.env`, chạy `pnpm --filter @livemate/server db:migrate` rồi khởi động backend. Backend tự tạo tài khoản và phòng `DEMO` khi cần. Chế độ local dùng được `demo@livemate.vn` và mật khẩu mẫu `livemate-demo` nếu chưa ghi đè qua biến môi trường. Xem cấu hình Railway và Vercel trong [hướng dẫn triển khai](docs/deploy.md).
 
-Mở [bản bàn giao HTML](docs/livemate-implementation-review.html) trong trình duyệt để xem luồng demo, mã liên quan và kết quả nghiệm thu theo từng issue.
-
 API dev của server: `GET /health`, `GET /api/dev/state`, `POST /api/dev/featured {code}`,
 `POST /api/dev/facebook/watch {objectId}`, `GET /api/orders/:token/qr.png`.
 
