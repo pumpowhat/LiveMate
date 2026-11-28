@@ -46,6 +46,7 @@ export class CommentPipeline {
   private readonly maxBatch: number;
   private readonly pending = new Map<string, { comments: Comment[]; timer: NodeJS.Timeout | null }>();
   private readonly chains = new Map<string, Promise<void>>();
+  private readonly admissions = new Map<string, Promise<void>>();
   /** Thời điểm nhận từng bình luận đang chờ (để đo thời gian chờ trong lô). */
   private readonly receivedAt = new Map<string, number>();
 
@@ -60,7 +61,20 @@ export class CommentPipeline {
   }
 
   /** Nhận bình luận mới. Trả về ngay; kết quả đến qua sink. */
-  async push(comment: Comment): Promise<void> {
+  push(comment: Comment): Promise<void> {
+    const { sessionId } = comment;
+    const receivedAt = Date.now();
+    const previous = this.admissions.get(sessionId) ?? Promise.resolve();
+    const admitted = previous.then(() => this.enqueue(comment, receivedAt));
+    const settled = admitted.then(() => undefined, () => undefined);
+    this.admissions.set(sessionId, settled);
+    void settled.then(() => {
+      if (this.admissions.get(sessionId) === settled) this.admissions.delete(sessionId);
+    });
+    return admitted;
+  }
+
+  private async enqueue(comment: Comment, receivedAt: number): Promise<void> {
     const ctx = await this.gateway.getSessionContext(comment.sessionId);
     const orders = await this.gateway.getOpenOrders(comment.sessionId, [comment.buyerExternalId]);
     const f = prefilter(comment.text, {
@@ -72,7 +86,7 @@ export class CommentPipeline {
       return;
     }
     this.sink.onVerdict(comment.sessionId, comment.id, "queued");
-    this.receivedAt.set(comment.id, Date.now());
+    this.receivedAt.set(comment.id, receivedAt);
 
     let slot = this.pending.get(comment.sessionId);
     if (!slot) {
@@ -109,12 +123,23 @@ export class CommentPipeline {
       return this.processBatch(sessionId, batch);
     });
     this.chains.set(sessionId, next);
+    const release = () => {
+      if (this.chains.get(sessionId) === next) this.chains.delete(sessionId);
+    };
+    void next.then(release, release);
     return next;
   }
 
   /** Chờ mọi lô của phiên xử lý xong (dùng khi kết thúc live và trong test). */
   async drain(sessionId: string): Promise<void> {
-    await this.flush(sessionId);
+    await this.admissions.get(sessionId);
+    let work = this.flush(sessionId);
+    for (;;) {
+      await work;
+      const remaining = this.chains.get(sessionId);
+      if (!remaining || remaining === work) return;
+      work = remaining;
+    }
   }
 
   private async processBatch(sessionId: string, batch: Comment[]): Promise<void> {

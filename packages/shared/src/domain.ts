@@ -46,6 +46,8 @@ export const Comment = z.object({
   buyerName: z.string(),
   text: z.string(),
   createdAt: z.string(), // ISO
+  verdict: z.lazy(() => CommentVerdict).optional(),
+  verdictOrderId: z.string().optional(),
 });
 export type Comment = z.infer<typeof Comment>;
 
@@ -103,14 +105,23 @@ export const RiskAlert = z.object({
 });
 export type RiskAlert = z.infer<typeof RiskAlert>;
 
+export const Seller = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  displayName: z.string(),
+});
+export type Seller = z.infer<typeof Seller>;
+
 export const LiveSession = z.object({
   id: z.string(),
   /** Mã phòng = tên room Socket.IO. */
   roomCode: z.string(),
+  sellerId: z.string().optional(),
   status: z.enum(["live", "ended"]),
   featuredProductId: z.string().nullable(),
   /** Facebook live video / post id đang theo dõi bình luận (nếu có). */
   facebookObjectId: z.string().nullable(),
+  facebookPageId: z.string().nullable().optional(),
   startedAt: z.string(),
   endedAt: z.string().nullable(),
 });

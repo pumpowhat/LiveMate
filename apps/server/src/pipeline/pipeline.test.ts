@@ -30,7 +30,7 @@ class FakeLlm implements LlmClient {
   }
 }
 
-function setup(llm: LlmClient) {
+function setup(llm: LlmClient, maxBatchSize = 20) {
   const gateway = new InMemoryOrderGateway({ session, catalog });
   const sink = {
     onVerdict: vi.fn<PipelineSink["onVerdict"]>(),
@@ -39,7 +39,7 @@ function setup(llm: LlmClient) {
     onNeedsReview: vi.fn<PipelineSink["onNeedsReview"]>(),
     onError: vi.fn<PipelineSink["onError"]>(),
   };
-  return { gateway, sink, pipeline: new CommentPipeline(llm, gateway, sink, { batchWindowMs: 10 }) };
+  return { gateway, sink, pipeline: new CommentPipeline(llm, gateway, sink, { batchWindowMs: 10, maxBatchSize }) };
 }
 
 function comment(id: string, text: string): Comment {
@@ -55,6 +55,18 @@ test("ignores a noise comment without calling the LLM", async () => {
 
   expect(sink.onVerdict.mock.calls).toEqual([[session.id, "c1", "ignored"]]);
   expect(llm.attempts).toBe(0);
+});
+
+test("drains every accepted comment in arrival order, including those still entering their batches", async () => {
+  const llm = new FakeLlm('{"actions":[]}');
+  const { pipeline, sink } = setup(llm, 1);
+  const pushes = ["c1", "c2", "c3"].map((id) => pipeline.push(comment(id, "chốt V03 size M")));
+
+  await pipeline.drain(session.id);
+  expect(llm.attempts).toBe(3);
+  expect(sink.onVerdict.mock.calls.filter(([, , verdict]) => verdict === "ignored").map(([, id]) => id))
+    .toEqual(["c1", "c2", "c3"]);
+  await Promise.all(pushes);
 });
 
 test("creates and then updates the same order within one timed batch", async () => {

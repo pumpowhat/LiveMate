@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bàn giao triển khai LiveMate</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-alt: #f1f5f9;
+      --text: #0f172a;
+      --text-muted: #475569;
+      --border: #cbd5e1;
+      --accent: #1d4ed8;
+      --accent-soft: #dbeafe;
+      --accent-text: #1e3a8a;
+      --ok-bg: #dcfce7;
+      --ok-text: #166534;
+      --ok-border: #86efac;
+      --warn-bg: #fef3c7;
+      --warn-text: #92400e;
+      --warn-border: #fcd34d;
+      --code-bg: #0f172a;
+      --code-text: #e2e8f0;
+      --shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      --radius: 10px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0b1120;
+        --surface: #111827;
+        --surface-alt: #1e293b;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+        --border: #334155;
+        --accent: #60a5fa;
+        --accent-soft: #1e3a8a;
+        --accent-text: #dbeafe;
+        --ok-bg: #052e16;
+        --ok-text: #86efac;
+        --ok-border: #166534;
+        --warn-bg: #451a03;
+        --warn-text: #fde68a;
+        --warn-border: #92400e;
+        --code-bg: #020617;
+        --code-text: #e2e8f0;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-alt: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --accent: #60a5fa;
+      --accent-soft: #1e3a8a;
+        --accent-text: #dbeafe;
+      --ok-bg: #052e16;
+      --ok-text: #86efac;
+      --ok-border: #166534;
+      --warn-bg: #451a03;
+      --warn-text: #fde68a;
+      --warn-border: #92400e;
+      --code-bg: #020617;
+      --code-text: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      font-size: 16px;
+    }
+
+    a {
+      color: var(--accent);
+      text-underline-offset: 3px;
+    }
+
+    a:focus-visible,
+    button:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      background: var(--accent);
+      color: #ffffff;
+      padding: 8px 14px;
+      z-index: 100;
+      border-radius: 0 0 6px 0;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .skip-link:focus {
+      left: 0;
+    }
+
+    /* Header & Controlled Sticky Nav */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .topbar-inner {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 10px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    .brand-tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-text);
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      align-items: center;
+    }
+
+    .nav-links a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      color: var(--text-muted);
+      padding: 4px 6px;
+      border-radius: 6px;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+      background: var(--surface-alt);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface-alt);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+
+    /* Main Layout */
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 24px 16px 56px;
+    }
+
+    section {
+      margin-top: 36px;
+      scroll-margin-top: 76px;
+    }
+
+    h1 {
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      line-height: 1.25;
+      margin: 0 0 10px;
+    }
+
+    h2 {
+      font-size: 1.35rem;
+      line-height: 1.3;
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1.08rem;
+      line-height: 1.35;
+      margin: 0 0 8px;
+    }
+
+    p {
+      margin: 0 0 12px;
+      max-width: 72ch;
+    }
+
+    ul, ol {
+      margin: 0 0 12px;
+      padding-left: 20px;
+      max-width: 72ch;
+    }
+
+    li + li {
+      margin-top: 4px;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.88em;
+      background: var(--surface-alt);
+      padding: 2px 5px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      word-break: break-word;
+    }
+
+    pre {
+      margin: 10px 0 14px;
+      padding: 12px 14px;
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
+
+    pre code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: inherit;
+      word-break: normal;
+    }
+
+    /* Cards & Grids */
+    .hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+
+    .badge-ok {
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      border-color: var(--ok-border);
+    }
+
+    .badge-warn {
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      border-color: var(--warn-border);
+    }
+
+    .badge-info {
+      background: var(--accent-soft);
+      color: var(--accent-text);
+      border-color: var(--border);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .callout {
+      border-left: 4px solid var(--accent);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 12px 16px;
+      margin: 14px 0;
+    }
+
+    .callout-warn {
+      border-left-color: #d97706;
+      background: var(--warn-bg);
+      color: var(--warn-text);
+    }
+
+    /* Flow Diagram (Pure HTML/CSS) */
+    .flow-wrap {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .flow-step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      position: relative;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .flow-num {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+    }
+
+    .flow-title {
+      font-weight: 700;
+      font-size: 0.94rem;
+    }
+
+    .flow-desc {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+    }
+
+    /* State Machine Pill Bar */
+    .state-chain {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .state-pill {
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+    }
+
+    .state-arrow {
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    /* Issue Cards */
+    .issue-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .issue-head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .issue-summary {
+      font-size: 0.96rem;
+      margin-bottom: 10px;
+    }
+
+    .issue-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      font-size: 0.88rem;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      background: var(--surface-alt);
+      border-radius: 8px;
+    }
+
+    .issue-meta strong {
+      display: block;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      background: var(--bg);
+      margin-top: 8px;
+    }
+
+    details > summary {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--accent);
+      list-style-position: inside;
+    }
+
+    details[open] > summary {
+      margin-bottom: 8px;
+    }
+
+    /* Tables */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      min-width: 520px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--surface-alt);
+      font-weight: 700;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Quiz */
+    .quiz-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .quiz-q {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    /* Print A4 Demo Sheet */
+    .a4-sheet {
+      background: var(--surface);
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    @media (max-width: 480px) {
+      .topbar-inner {
+        padding: 8px 12px;
+      }
+      .nav-links {
+        gap: 4px 8px;
+      }
+      .nav-links a {
+        font-size: 0.8rem;
+        padding: 3px 4px;
+      }
+      .container {
+        padding: 16px 12px 40px;
+      }
+      .issue-card, .hero, .card {
+        padding: 14px;
+      }
+      table {
+        min-width: 420px;
+      }
+    }
+
+    @page {
+      size: A4;
+      margin: 16mm;
+    }
+
+    @media print {
+      .topbar, .no-print, .skip-link, #main-content > :not(#demo-a4) {
+        display: none !important;
+      }
+      body {
+        background: #ffffff;
+        color: #000000;
+        font-size: 11pt;
+        line-height: 1.45;
+      }
+      .container {
+        max-width: 100%;
+        padding: 0;
+      }
+      .card, .issue-card, .hero, .a4-sheet {
+        box-shadow: none;
+        border: 1px solid #94a3b8;
+        break-inside: avoid;
+      }
+      .a4-sheet {
+        border: 1px solid #000000;
+        background: #ffffff;
+        color: #000000;
+      }
+      a {
+        color: #000000;
+        text-decoration: underline;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Bỏ qua điều hướng, tới nội dung chính</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#tong-quan">
+        <span>LiveMate</span>
+        <span class="brand-tag">Bàn giao kỹ thuật</span>
+      </a>
+      <nav class="nav-links" aria-label="Điều hướng tài liệu">
+        <a href="#luong-demo">Luồng demo</a>
+        <a href="#bang-chung">Bằng chứng</a>
+        <a href="#tam-issue">8 Issue</a>
+        <a href="#quyet-dinh">Thiết kế</a>
+        <a href="#chay-lai">Chạy lại</a>
+        <a href="#demo-a4">Bản in A4</a>
+        <a href="#tu-kiem-tra">Tự kiểm tra</a>
+      </nav>
+      <div class="controls">
+        <button type="button" class="btn" id="theme-toggle" aria-label="Chuyển chế độ sáng hoặc tối">
+          <span id="theme-icon" aria-hidden="true">◐</span>
+          <span id="theme-label">Giao diện</span>
+        </button>
+        <button type="button" class="btn no-print" onclick="window.print()">In A4</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" class="container">
+    <!-- Hero -->
+    <section id="tong-quan" class="hero">
+      <h1>Tài liệu bàn giao &amp; Đánh giá triển khai LiveMate</h1>
+      <p>
+        Tài liệu này giúp <strong>Nhật</strong> nắm trọn vẹn kiến trúc, 8 issue đã triển khai, lý do thiết kế,
+        bằng chứng nghiệm thu tại máy (local) và các bước tự chạy lại toàn bộ hệ thống trước khi đẩy nhánh và mở PR nháp.
+      </p>
+      <div class="meta-row">
+        <span class="badge badge-info">Repo: <a href="https://github.com/pumpowhat/LiveMate" target="_blank" rel="noopener noreferrer">pumpowhat/LiveMate</a></span>
+        <span class="badge badge-info">Baseline: <code>c3ed505</code></span>
+        <span class="badge badge-ok">Nghiệm thu local: 28/11/2026</span>
+        <span class="badge badge-warn">Chưa deploy: URL thật / Fanpage thật / Điện thoại thật</span>
+      </div>
+    </section>
+
+    <!-- Luồng demo trực quan -->
+    <section id="luong-demo">
+      <h2>1. Luồng demo trực quan từ đầu đến cuối</h2>
+      <p>
+        Sơ đồ dưới đây mô tả đường đi của một phiên livestream bán hàng từ lúc người bán mở phòng đến khi chốt sổ cuối phiên.
+      </p>
+
+      <div class="flow-wrap" role="list" aria-label="11 bước luồng nghiệp vụ LiveMate">
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 1 · Auth</span>
+          <span class="flow-title">Người bán đăng nhập</span>
+          <span class="flow-desc">Cookie <code>HttpOnly</code> + vé Socket.IO ngắn hạn.</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 2 · Phiên</span>
+          <span class="flow-title">Mở phiên &amp; chọn món</span>
+          <span class="flow-desc">Tạo <code>roomCode</code>, nạp catalog, chọn sản phẩm đang ghim.</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 3 · Phòng</span>
+          <span class="flow-title">Người mua quét QR phòng</span>
+          <span class="flow-desc">Mở <code>/r/&lt;roomCode&gt;</code>, nhận capability theo phiên.</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 4 · Nhập</span>
+          <span class="flow-title">Bình luận chốt đơn</span>
+          <span class="flow-desc">Từ phòng live, Facebook Fanpage hoặc extension.</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 5 · AI Pipeline</span>
+          <span class="flow-title">Lọc &amp; gom lô bình luận</span>
+          <span class="flow-desc">Phân loại verdict (<code>create</code>, <code>update</code>, <code>cancel</code>, <code>ask</code>...).</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 6 · PostgreSQL</span>
+          <span class="flow-title">Tạo/sửa đơn &amp; trừ tồn</span>
+          <span class="flow-desc"><code>OrderGateway</code> khóa trong giao dịch Prisma.</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 7 · Realtime</span>
+          <span class="flow-title">Socket.IO gửi đúng người</span>
+          <span class="flow-desc">Phát riêng tới <code>sellerRoom</code>, <code>buyerRoom</code>, <code>orderRoom</code>.</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 8 · Thanh toán</span>
+          <span class="flow-title">Hiển thị ảnh VietQR đơn</span>
+          <span class="flow-desc">QR chứa số tiền và nội dung <code>LM &lt;mã ngắn&gt;</code>.</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 9 · Người mua</span>
+          <span class="flow-title">Báo đã chuyển khoản</span>
+          <span class="flow-desc">Chuyển trạng thái sang <code>awaiting_confirmation</code>.</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 10 · Người bán</span>
+          <span class="flow-title">Đối soát &amp; xác nhận</span>
+          <span class="flow-desc">Chuyển sang <code>paid</code> (có thể giao <code>delivered</code>).</span>
+        </div>
+        <div class="flow-step" role="listitem">
+          <span class="flow-num">Bước 11 · Tổng kết</span>
+          <span class="flow-title">Kết thúc live &amp; chốt sổ</span>
+          <span class="flow-desc">Chờ pipeline xử lý nốt, xem doanh thu &amp; nhắc đơn treo.</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Phân biệt 2 loại mã QR</h3>
+          <ul>
+            <li><strong>QR phòng (Room QR):</strong> Chứa đường dẫn <code>/r/&lt;roomCode&gt;</code> để người mua vào đúng phòng live xem món đang ghim và bình luận.</li>
+            <li><strong>VietQR đơn (Order QR):</strong> Sinh từ endpoint <code>/api/orders/:token/qr.png</code>, nhúng số tiền cụ thể và nội dung chuyển khoản <code>LM &lt;mã ngắn&gt;</code>.</li>
+          </ul>
+        </div>
+        <div class="callout callout-warn">
+          <strong>Lưu ý an toàn thanh toán (Bản thi):</strong><br>
+          Quy trình thanh toán hiện tại là <strong>người mua báo đã chuyển</strong> và <strong>người bán xác nhận thủ công</strong>.
+          Tuyệt đối không hướng dẫn người dùng chuyển tiền thật từ môi trường thử nghiệm; ảnh QR local dùng tài khoản giả lập để kiểm thử.
+        </div>
+      </div>
+    </section>
+
+    <!-- Bằng chứng đã có vs Chưa xác nhận -->
+    <section id="bang-chung">
+      <h2>2. Kết quả nghiệm thu và phần còn lại</h2>
+      <p>
+        Tách bạch rõ những gì đã được kiểm chứng trực tiếp trên máy local ngày 28/11/2026 và những hạng mục còn chờ môi trường thật.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3><span class="badge badge-ok">Đã xác minh tại máy (Local)</span></h3>
+          <ul>
+            <li><strong>PostgreSQL 17 và 12 nhóm kiểm thử HTTP/Socket.IO.</strong> Đã chạy migration, kiểm tra đăng nhập, phân quyền, quyền riêng tư đơn, đổi và hoàn kho, QR, trạng thái thanh toán và tổng kết. Hai người cùng chốt món cuối chỉ tạo một đơn. Báo cáo giữ đủ đơn đã nhận trước khi đóng phiên và số liệu vẫn khớp sau khi khởi động lại backend.</li>
+            <li><strong>Chromium 158 (Desktop <code>1440×940</code> &amp; Mobile <code>360×800</code>):</strong> Đạt 12 checkpoint trên web local: đăng nhập, quét QR phòng, đổi món, lọc bình luận, chốt đơn, tồn kho <code>7 → 6</code>, reload, inline VietQR, sửa đơn <code>135.000đ → 270.000đ</code> và giải mã QR mới cao hơn, báo chuyển, xác nhận thấy <code>paid</code> cả 2 trang, cảnh báo, tổng kết <code>270.000đ</code> / 1 đơn trả / 1 đơn treo &amp; nút nhắc. Không tràn ngang, không lỗi JS chưa xử lý. Reconnect buộc đóng WebSocket: lấy vé mới và tham gia lại bình thường.</li>
+            <li><strong>Load script local (<code>LLM_PROVIDER=fake</code>):</strong> 30 người mua, 120 bình luận/phút trong 60 giây: phát <code>133</code>, hoàn tất <code>133</code>, <code>0</code> unparsed, <code>0</code> sai lệch, <code>p50 = 395 ms</code>, <code>p95 = 474 ms</code>. <em>(Đây là thời gian xử lý backend tới verdict trong kịch bản local với LLM giả, không phải độ trễ Gemini thật hay độ mượt trên mọi thiết bị.)</em></li>
+            <li><strong>Smoke script local (<code>LLM_PROVIDER=fake</code>):</strong> Tạo, sửa, hủy, rủi ro, QR PNG HTTP 200 (dùng tài khoản giả).</li>
+            <li><strong>Bộ kiểm thử workspace.</strong> <code>135</code> server + <code>16</code> extension + <code>5</code> web = <code>156</code> ca. Đã chạy <code>pnpm typecheck</code> toàn workspace và build production của Next.js.</li>
+            <li><strong>Docker local ở chế độ production.</strong> Image chạy migration trên database mới, trả <code>/health</code> thành công và tắt API dev. Đăng xuất thu hồi cookie và ngắt luôn kết nối Socket.IO của phiên người bán.</li>
+            <li><strong>AGY ping:</strong> <code>gemini-4-hydrogen-low</code> (effort low) trả <code>PONG</code>, exit 0.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3><span class="badge badge-warn">Chưa xác nhận / Chờ triển khai</span></h3>
+          <ul>
+            <li><strong>URL triển khai thật (Vercel / Railway):</strong> Chưa nghiệm thu đến thời điểm nhận bàn giao; cần cấu hình env thực tế và kiểm tra lại sau deploy.</li>
+            <li><strong>Fanpage Facebook thật.</strong> Cần cấu hình ứng dụng và quyền Graph API để kiểm tra việc đọc bình luận và trả lời kèm liên kết đơn trên Fanpage.</li>
+            <li><strong>Điện thoại thật:</strong> Giao diện mobile mới chỉ được đo tại viewport <code>360×800</code> trên Chromium 158, chưa kiểm thử trên thiết bị di động thật.</li>
+            <li><strong>Độ trễ LLM thực tế:</strong> Chưa đo tải với Gemini API thật; số liệu p50/p95 hiện tại dùng <code>LLM_PROVIDER=fake</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 Issues -->
+    <section id="tam-issue">
+      <h2>3. Chi tiết 8 Issue đã triển khai</h2>
+      <p>
+        Mỗi issue dưới đây tóm tắt mục tiêu, thay đổi chính, lý do thiết kế, ca nghiệm thu quan sát được và tình trạng thực tế.
+        Bấm vào phần mở rộng để xem chi tiết kỹ thuật.
+      </p>
+
+      <!-- Issue 1 -->
+      <article class="issue-card" id="issue-1">
+        <div class="issue-head">
+          <h3>Issue #1 — Hợp đồng kiểu Zod dùng chung &amp; ranh giới OrderGateway</h3>
+          <span class="badge badge-ok">Local đạt · Typecheck &amp; Test</span>
+        </div>
+        <p class="issue-summary">
+          Định nghĩa schema Zod thống nhất cho toàn bộ thực thể (Seller, LiveSession, Product, Buyer, Comment, Order, RiskAlert) và sự kiện Socket.IO/AI trong gói <code>@livemate/shared</code>, đồng thời giữ ranh giới sạch giữa pipeline AI và tầng lưu trữ thông qua <code>OrderGateway</code>.
+        </p>
+        <div class="issue-meta">
+          <div><strong>Thay đổi trong mã</strong><code>packages/shared/src/domain.ts</code>, <code>ai.ts</code>, <code>events.ts</code>; <code>OrderGateway</code> trong <code>apps/server/src/pipeline/</code></div>
+          <div><strong>Lý do thiết kế</strong>Một nguồn chân lý (single source of truth) giúp frontend, backend và AI pipeline không lệch kiểu dữ liệu khi phát triển song song.</div>
+          <div><strong>Ca nghiệm thu</strong>Typecheck toàn workspace đạt; pipeline gọi <code>OrderGateway</code> tạo/cập nhật đơn mà không phụ thuộc trực tiếp vào chi tiết Prisma hay memory store.</div>
+        </div>
+        <details>
+          <summary>Xem chi tiết kiểu &amp; ranh giới module</summary>
+          <ul>
+            <li><code>OrderStatus</code>: <code>pending_payment</code>, <code>awaiting_confirmation</code>, <code>paid</code>, <code>delivered</code>, <code>cancelled</code>.</li>
+            <li><code>CommentVerdict</code>: <code>ignored</code>, <code>queued</code>, <code>create</code>, <code>update</code>, <code>cancel</code>, <code>ask</code>, <code>unparsed</code>.</li>
+            <li><code>RiskKind</code>: <code>buyer_history_boom</code>, <code>unusual_quantity</code>, <code>payment_not_found</code>, <code>out_of_stock</code>.</li>
+            <li>Truy lại: <a href="https://github.com/pumpowhat/LiveMate/issues" target="_blank" rel="noopener noreferrer">pumpowhat/LiveMate Issues</a> · <code>packages/shared/src/domain.ts</code>.</li>
+          </ul>
+        </details>
+      </article>
+
+      <!-- Issue 2 -->
+      <article class="issue-card" id="issue-2">
+        <div class="issue-head">
+          <h3>Issue #2 — Khung ứng dụng Web Next.js, Rewrite API &amp; Thử bình luận DEMO</h3>
+          <span class="badge badge-ok">Local đạt · 12 checkpoint Chromium</span>
+        </div>
+        <p class="issue-summary">
+          Xây dựng frontend <code>apps/web</code> với Next.js, TypeScript, Tailwind CSS và các component theo phong cách shadcn/ui. Cấu hình <code>next.config.ts</code> rewrite <code>/api/:path*</code> về backend để cookie auth đi cùng origin, còn client Socket.IO kết nối trực tiếp tới backend.
+        </p>
+        <div class="issue-meta">
+          <div><strong>Thay đổi trong mã</strong><code>apps/web/next.config.ts</code>, cấu hình Tailwind tuyệt đối (khắc phục lỗi CWD), trang chủ DEMO.</div>
+          <div><strong>Lý do thiết kế</strong>Rewrite <code>/api/*</code> giúp trình duyệt gửi cookie <code>HttpOnly</code> ổn định không vướng CORS; Socket.IO kết nối thẳng để tránh giới hạn proxy WebSocket của Next.js.</div>
+          <div><strong>Ca nghiệm thu</strong>Trang web local dựng thành công, <code>pnpm build:web</code> đạt; thử bình luận DEMO trên trang chủ hoạt động bình thường.</div>
+        </div>
+        <details>
+          <summary>Xem chi tiết cấu hình rewrite &amp; ghi chú</summary>
+          <pre><code>// apps/web/next.config.ts
+const serverUrl = (process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000").replace(/\/+$/, "");
+rewrites() -> [{ source: "/api/:path*", destination: `${serverUrl}/api/:path*` }]</code></pre>
+          <p>Chưa xác nhận: URL deploy thật trên Vercel/Railway và cấu hình biến môi trường production.</p>
+        </details>
+      </article>
+
+      <!-- Issue 3 -->
+      <article class="issue-card" id="issue-3">
+        <div class="issue-head">
+          <h3>Issue #3 — Xác thực người bán, Cookie HttpOnly &amp; Vé Socket ngắn hạn</h3>
+          <span class="badge badge-ok">Local đạt · E2E Auth &amp; Reconnect</span>
+        </div>
+        <p class="issue-summary">
+          Triển khai đăng ký, đăng nhập, đăng xuất với <code>bcryptjs</code>, cookie <code>HttpOnly</code>/<code>SameSite</code>, phân quyền sở hữu phiên/đơn cho từng seller, và cơ chế cấp vé Socket.IO ngắn hạn (<code>signSocketToken</code>) để kết nối lại tự động sau khi rớt mạng.
+        </p>
+        <div class="issue-meta">
+          <div><strong>Thay đổi trong mã</strong><code>apps/server/src/routes/auth.ts</code>, <code>apps/server/src/auth/crypto.ts</code>, middleware <code>withSellerAuth</code>.</div>
+          <div><strong>Lý do thiết kế</strong>Cookie <code>HttpOnly</code> chống XSS đọc token; khi Socket.IO kết nối trực tiếp khác port/origin, client lấy vé ngắn hạn qua API đã xác thực để join phòng seller an toàn.</div>
+          <div><strong>Ca nghiệm thu</strong>E2E nhóm auth/cookie/logout &amp; cô lập seller đạt; buộc đóng WebSocket trên Chromium, client tự lấy vé mới và vào lại phòng thành công.</div>
+        </div>
+        <details>
+          <summary>Xem chi tiết luồng xác thực &amp; lưu ý bảo mật</summary>
+          <ul>
+            <li>Đăng nhập/đăng ký lưu <code>hashToken(rawToken)</code> vào bảng <code>AuthSession</code> với hạn <code>AUTH_SESSION_TTL_MS</code>.</li>
+            <li>Callback Facebook OAuth đi qua origin web. Tài khoản DEMO có cấu hình riêng khi deploy.</li>
+            <li>Lưu ý: Tuyệt đối không đưa mật khẩu, token thật hoặc secret vào tài liệu hay mã nguồn git.</li>
+          </ul>
+        </details>
+      </article>
+
+      <!-- Issue 4 -->
+      <article class="issue-card" id="issue-4">
+        <div class="issue-head">
+          <h3>Issue #4 — CSDL PostgreSQL, Prisma Schema &amp; Khóa giao dịch tồn kho</h3>
+          <span class="badge badge-ok">Local đạt · PG 17 Docker</span>
+        </div>
+        <p class="issue-summary">
+          Thiết kế lược đồ Prisma cho phiên live, danh mục sản phẩm/size/tồn kho tách biệt theo từng phiên, sản phẩm đang giới thiệu và lịch sử bình luận/đơn hàng. <code>PrismaGateway</code> thực hiện trừ/hoàn tồn kho trong giao dịch PostgreSQL có khóa để tránh bán quá tồn khi nhiều người chốt cùng lúc.
+        </p>
+        <div class="issue-meta">
+          <div><strong>Thay đổi trong mã</strong><code>apps/server/prisma/schema.prisma</code>, migration ban đầu, <code>src/store/prisma-store.ts</code>, <code>src/pipeline/prisma-gateway.ts</code>.</div>
+          <div><strong>Lý do thiết kế</strong>Tách catalog theo phiên giúp mỗi buổi live độc lập giá và tồn kho; khóa giao dịch ở tầng DB ngăn race condition khi bình luận dồn dập.</div>
+          <div><strong>Ca nghiệm thu</strong>Migration chạy sạch trên PostgreSQL 17 Docker; chốt đơn thành công làm tồn kho giảm đúng từ <code>7 → 6</code>, hủy đơn hoàn lại tồn kho.</div>
+        </div>
+        <details>
+          <summary>Xem chi tiết mô hình dữ liệu &amp; chế độ chạy</summary>
+          <ul>
+            <li><code>LiveSession</code> chứa <code>roomCode</code> duy nhất, <code>featuredProductId</code>, <code>previouslyFeatured</code>, <code>nextOrderSeq</code>.</li>
+            <li><code>Product</code> lưu <code>sizes: String[]</code> và <code>stock: Json</code> theo từng size (hoặc key <code>""</code> nếu không có size).</li>
+            <li>Demo local có thể chạy memory store khi chưa nối DB; production bắt buộc dùng PostgreSQL.</li>
+          </ul>
+        </details>
+      </article>
+
+      <!-- Issue 5 -->
+      <article class="issue-card" id="issue-5">
+        <div class="issue-head">
+          <h3>Issue #5 — Vòng đời đơn hàng, Quyền riêng tư Socket &amp; RiskEngine</h3>
+          <span class="badge badge-ok">Local đạt · E2E 9 nhóm</span>
+        </div>
+        <p class="issue-summary">
+          Quản lý toàn bộ thao tác đơn hàng (duyệt, sửa, hủy, báo chuyển, xác nhận, giao, nhắc) qua hàm chuyển trạng thái thuần <code>evaluateOrderTransition</code>, phát sự kiện riêng tư theo phòng và kích hoạt hooks <code>RiskEngine</code> khi đơn thay đổi.
+        </p>
+        <div class="issue-meta">
+          <div><strong>Thay đổi trong mã</strong><code>routes/orders.ts</code>, <code>routes/sessions.ts</code>, <code>store/transitions.ts</code>, <code>realtime/sink.ts</code>.</div>
+          <div><strong>Lý do thiết kế</strong>Kiểm tra chuyển trạng thái tập trung ném <code>ConflictError</code> (HTTP 409) khi sai bước; tách <code>emitOrderPrivate</code> để dữ liệu đơn không rò rỉ sang người mua khác.</div>
+          <div><strong>Ca nghiệm thu</strong>E2E xác nhận quyền riêng tư đơn, báo chuyển → xác nhận → giao, hủy đơn hoàn kho và kích hoạt cảnh báo rủi ro đều đạt.</div>
+        </div>
+        <div class="state-chain" aria-label="Chuỗi trạng thái đơn hàng">
+          <span class="state-pill">pending_payment</span>
+          <span class="state-arrow">→</span>
+          <span class="state-pill">awaiting_confirmation</span>
+          <span class="state-arrow">→</span>
+          <span class="state-pill">paid</span>
+          <span class="state-arrow">→</span>
+          <span class="state-pill">delivered</span>
+        </div>
+        <details>
+          <summary>Xem chi tiết điều kiện chuyển trạng thái (đối chiếu từ transitions.ts)</summary>
+          <ul>
+            <li><code>approve</code>: Chỉ hợp lệ khi đơn đang mở (<code>pending_payment</code> hoặc <code>awaiting_confirmation</code>), đánh dấu <code>sellerEdited = true</code> để AI không tự ghi đè.</li>
+            <li><code>report_payment</code>: Từ <code>pending_payment → awaiting_confirmation</code> (idempotent nếu đã ở <code>awaiting_confirmation</code>).</li>
+            <li><code>confirm</code>: Chấp nhận cả <code>pending_payment</code> và <code>awaiting_confirmation</code> → <code>paid</code> (vì người bán có thể đối soát sao kê và xác nhận trực tiếp từ <code>pending_payment</code>).</li>
+            <li><code>deliver</code>: Chỉ từ <code>paid → delivered</code>.</li>
+            <li><code>cancel</code>: Chỉ khi đơn đang mở → <code>cancelled</code> và đặt <code>restoreStock = true</code> để hoàn tồn kho.</li>
+            <li><code>remind</code>: Chỉ khi đơn đang mở, phát sự kiện <code>reply:new</code> kèm link <code>/o/&lt;publicToken&gt;</code>.</li>
+          </ul>
+        </details>
+      </article>
+
+      <!-- Issue 6 -->
+      <article class="issue-card" id="issue-6">
+        <div class="issue-head">
+          <h3>Issue #6 — Bảng điều khiển người bán 3 cột &amp; Sửa đơn trực tiếp</h3>
+          <span class="badge badge-ok">Local đạt · Chromium 1440×940</span>
+        </div>
+        <p class="issue-summary">
+          Giao diện điều hành livestream 3 cột cho người bán: Luồng bình luận (kèm badge verdict), Danh sách đơn hàng (sửa trực tiếp số lượng/size, cảnh báo rủi ro, nút duyệt/xác nhận/giao/hủy), và Danh mục sản phẩm (ghim món, mở QR phòng, kết nối Fanpage, quản lý phiên).
+        </p>
+        <div class="issue-meta">
+          <div><strong>Thay đổi trong mã</strong><code>apps/web/src/components/seller/seller-dashboard.tsx</code> và các component cột (<code>live-feed-column.tsx</code>, <code>orders-column.tsx</code>, <code>catalog-column.tsx</code>).</div>
+          <div><strong>Lý do thiết kế</strong>Bố cục 3 cột giúp người bán vừa đọc bình luận, vừa theo dõi đơn mới và đổi món ghim trên cùng một màn hình không cần chuyển trang; tự merge state khi reconnect.</div>
+          <div><strong>Ca nghiệm thu</strong>Trên Chromium desktop, người bán đổi món ghim, sửa đơn từ <code>135.000đ → 270.000đ</code>, xem cảnh báo và xác nhận thanh toán trơn tru.</div>
+        </div>
+        <details>
+          <summary>Xem chi tiết đồng bộ trạng thái &amp; reconnect</summary>
+          <p>
+            <code>seller-dashboard.tsx</code> dùng <code>mergeOrdersByUpdatedAt</code> và <code>mergeCommentsById</code> để gộp dữ liệu cũ và mới khi Socket.IO kết nối lại, tránh mất đơn hoặc trùng bình luận.
+          </p>
+        </details>
+      </article>
+
+      <!-- Issue 7 -->
+      <article class="issue-card" id="issue-7">
+        <div class="issue-head">
+          <h3>Issue #7 — Trang phòng người mua (/r/[roomCode]) &amp; Trang đơn công khai (/o/[token])</h3>
+          <span class="badge badge-warn">Chromium 360px đạt · Điện thoại thật chưa đo</span>
+        </div>
+        <p class="issue-summary">
+          Người mua quét QR phòng để vào <code>/r/[roomCode]</code>, lưu capability token theo phòng để tải lại trang không mất danh tính, xem VietQR inline ngay khi có đơn hoặc mở trang đơn công khai <code>/o/[token]</code>. URL ảnh QR tự cập nhật khi số tiền hoặc trạng thái đơn thay đổi.
+        </p>
+        <div class="issue-meta">
+          <div><strong>Thay đổi trong mã</strong><code>apps/web/src/app/r/[roomCode]/page.tsx</code> và <code>apps/web/src/app/o/[token]/page.tsx</code>.</div>
+          <div><strong>Lý do thiết kế</strong>Lưu capability theo phòng giúp người mua F5 trình duyệt vẫn giữ được lịch sử đơn của mình; trang <code>/o/[token]</code> dùng token khó đoán để chia sẻ link thanh toán riêng tư.</div>
+          <div><strong>Ca nghiệm thu</strong>Chromium <code>360×800</code> không tràn ngang; sửa đơn làm ảnh QR giải mã ra số tiền mới cao hơn; xác nhận thanh toán hiện <code>paid</code> ở cả hai trang.</div>
+        </div>
+        <details>
+          <summary>Xem chi tiết kiểm tra &amp; phần chưa xác nhận</summary>
+          <ul>
+            <li>Đã kiểm tra: Reload trang phòng giữ capability; QR PNG trả về HTTP 200 với header <code>Cache-Control: no-store</code>.</li>
+            <li>Chưa xác nhận: Trải nghiệm thực tế trên điện thoại thật (cảm ứng, bàn phím ảo, camera quét QR).</li>
+          </ul>
+        </details>
+      </article>
+
+      <!-- Issue 8 -->
+      <article class="issue-card" id="issue-8">
+        <div class="issue-head">
+          <h3>Issue #8 — Kết thúc phiên, Báo cáo tổng kết &amp; Nhắc đơn treo</h3>
+          <span class="badge badge-ok">Local đạt · Chromium &amp; E2E</span>
+        </div>
+        <p class="issue-summary">
+          Khi kết thúc live, hệ thống chờ pipeline xử lý nốt các bình luận đã nhận rồi tổng hợp báo cáo: doanh thu thực thu (chỉ tính <code>paid</code> + <code>delivered</code>), số lượng đơn theo từng trạng thái, danh sách đơn treo cần nhắc và top sản phẩm bán chạy.
+        </p>
+        <div class="issue-meta">
+          <div><strong>Thay đổi trong mã</strong><code>apps/server/src/store/transitions.ts</code> (<code>computeSessionSummary</code>), <code>apps/web/src/components/seller/summary-dialog.tsx</code>.</div>
+          <div><strong>Lý do thiết kế</strong>Chỉ cộng doanh thu từ đơn <code>paid</code> và <code>delivered</code> để số liệu khớp tiền thực nhận; tích hợp nút xác nhận nhanh và nhắc thanh toán ngay trong hộp thoại tổng kết.</div>
+          <div><strong>Ca nghiệm thu</strong>Màn hình tổng kết hiển thị đúng <code>270.000đ</code>, 1 đơn đã trả, 1 đơn treo kèm nút nhắc thanh toán hoạt động đúng.</div>
+        </div>
+        <details>
+          <summary>Xem chi tiết logic tính tổng kết</summary>
+          <ul>
+            <li><code>computeSessionSummary(session, orders)</code> đếm đủ 5 trạng thái và gom <code>pendingOrders</code> (các đơn <code>isOpenStatus</code>).</li>
+            <li><code>topProducts</code> sắp xếp giảm dần theo doanh thu (<code>revenue</code>), sau đó đến số lượng (<code>qty</code>).</li>
+            <li>Nút nhắc thanh toán gọi <code>POST /api/orders/:orderId/remind</code> và sao chép nội dung nhắc vào clipboard.</li>
+          </ul>
+        </details>
+      </article>
+    </section>
+
+    <!-- Quyết định kỹ thuật -->
+    <section id="quyet-dinh">
+      <h2>4. Các quyết định kỹ thuật quan trọng</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Chủ đề</th>
+              <th>Quyết định đã chọn</th>
+              <th>Lý do &amp; Đánh đổi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Hợp đồng dữ liệu</td>
+              <td>Zod schema dùng chung trong <code>@livemate/shared</code> + interface <code>OrderGateway</code></td>
+              <td>Tránh lệch kiểu giữa server/web/pipeline; dễ hoán đổi memory store và Prisma PostgreSQL.</td>
+            </tr>
+            <tr>
+              <td>Giao tiếp Web ↔ Server</td>
+              <td>Next.js rewrite <code>/api/*</code> + Socket.IO kết nối trực tiếp</td>
+              <td>Cookie <code>HttpOnly</code> hoạt động cùng origin; WebSocket không bị nghẽn qua proxy Next.js.</td>
+            </tr>
+            <tr>
+              <td>Bảo mật Realtime</td>
+              <td>Cookie <code>HttpOnly</code> + vé Socket ngắn hạn + phòng riêng tư</td>
+              <td>Ngăn XSS lấy token phiên; sự kiện đơn hàng chỉ gửi tới <code>sellerRoom</code>, <code>buyerRoom</code>, <code>orderRoom</code>.</td>
+            </tr>
+            <tr>
+              <td>Tồn kho đồng thời</td>
+              <td>Catalog tách theo phiên + giao dịch khóa trong <code>PrismaGateway</code></td>
+              <td>Chống oversell khi nhiều bình luận chốt cùng lúc; chấp nhận độ trễ khóa ngắn ở tầng DB.</td>
+            </tr>
+            <tr>
+              <td>Trạng thái đơn</td>
+              <td>Máy trạng thái thuần <code>evaluateOrderTransition</code></td>
+              <td>Cho phép người bán <code>confirm</code> trực tiếp từ <code>pending_payment</code> hoặc <code>awaiting_confirmation</code>; sai luồng trả HTTP 409.</td>
+            </tr>
+            <tr>
+              <td>Kiểm thử AI</td>
+              <td>Hỗ trợ <code>LLM_PROVIDER=fake</code> cho smoke &amp; load test</td>
+              <td>Kiểm thử deterministic không tốn chi phí API; cần đo thêm độ trễ Gemini thật trước khi chốt tải production.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Cách chạy lại -->
+    <section id="chay-lai">
+      <h2>5. Cách chạy lại &amp; kiểm tra tại máy (Local)</h2>
+      <p>
+        Yêu cầu môi trường: <strong>Node 24</strong> (<code>engines &gt;= 22</code>), <strong>pnpm 12.23.0</strong>, và PostgreSQL 17 (nếu chạy với DB thật).
+        Cổng mặc định: Backend <code>:4000</code>, Frontend <code>:3000</code>. Tham khảo thêm <code>README.md</code> và <code>docs/deploy.md</code> cho các biến môi trường.
+      </p>
+
+      <pre><code># 1. Cài đặt phụ thuộc đúng lockfile
+pnpm install --frozen-lockfile
+
+# 2. Chạy migration PostgreSQL (đặt DATABASE_URL trước)
+pnpm --filter @livemate/server db:migrate
+
+# 3. Kiểm tra tĩnh, build web và chạy toàn bộ test
+pnpm typecheck
+pnpm build:web
+pnpm test
+
+# 4. Chạy dev local với LLM giả để kiểm thử ổn định
+LLM_PROVIDER=fake pnpm dev:server
+pnpm dev:web</code></pre>
+
+      <p>
+        Các kịch bản kiểm thử tải và smoke nằm trong thư mục <code>apps/server/scripts/</code>.
+        Khi chạy kiểm thử quyết định (deterministic), luôn đặt <code>LLM_PROVIDER=fake</code>.
+      </p>
+    </section>
+
+    <!-- Bản in A4 -->
+    <section id="demo-a4">
+      <h2>6. Hướng dẫn Demo 1 trang A4 (Có thể in trực tiếp)</h2>
+      <div class="a4-sheet">
+        <h3>Kịch bản Demo LiveMate (Phiên bản thi đấu)</h3>
+        <p><strong>Chuẩn bị.</strong> Chạy backend và web. Dùng tài khoản demo do nhóm cung cấp hoặc tài khoản local đã tạo. Mã QR local chỉ dùng để diễn tập.</p>
+        <ol>
+          <li><strong>Đăng nhập người bán.</strong> Chọn phòng <code>DEMO</code> đã có danh mục mẫu. Nếu mở phiên mới, thêm ít nhất một sản phẩm và tồn kho trước khi mời người mua.</li>
+          <li><strong>Mở QR phòng &amp; Ghim món:</strong> Bấm nút QR phòng để lấy link <code>/r/&lt;roomCode&gt;</code>; chọn ghim sản phẩm đầu tiên.</li>
+          <li><strong>Người mua vào phòng:</strong> Mở tab ẩn danh hoặc thiết bị thứ hai vào <code>/r/&lt;roomCode&gt;</code>.</li>
+          <li><strong>Chốt đơn qua bình luận:</strong> Người mua gửi bình luận chốt món + size. Quan sát bình luận lên cột trái, AI gắn verdict <code>create</code>, đơn mới hiện ở cột giữa, tồn kho giảm.</li>
+          <li><strong>Xem VietQR &amp; Sửa đơn:</strong> Người mua thấy VietQR inline; người bán thử sửa số lượng trên đơn → VietQR cập nhật số tiền mới.</li>
+          <li><strong>Báo chuyển &amp; Xác nhận:</strong> Người mua bấm <em>"Đã chuyển khoản"</em> (<code>awaiting_confirmation</code>) → người bán bấm <em>"Xác nhận thanh toán"</em> (<code>paid</code>). Cả 2 màn hình cùng cập nhật.</li>
+          <li><strong>Kết thúc live &amp; Tổng kết:</strong> Bấm kết thúc phiên → mở bảng Tổng kết xem doanh thu thực thu, số đơn theo trạng thái và thử nút nhắc thanh toán đơn treo.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Tự kiểm tra -->
+    <section id="tu-kiem-tra">
+      <h2>7. Câu hỏi tự kiểm tra cho Nhật (Đáp án ẩn)</h2>
+      <p>Hãy tự trả lời trước khi mở đáp án để chắc chắn bạn có thể giải thích mạch lạc khi bảo vệ hoặc review PR.</p>
+
+      <div class="quiz-item">
+        <div class="quiz-q">Câu 1: Vì sao <code>apps/web</code> dùng rewrite <code>/api/:path*</code> cho REST/QR nhưng lại để client Socket.IO kết nối trực tiếp tới backend?</div>
+        <details>
+          <summary>Xem đáp án</summary>
+          <p>
+            Rewrite <code>/api/*</code> giúp các request HTTP đi qua cùng origin với frontend, nhờ đó trình duyệt gửi cookie <code>HttpOnly</code> ổn định không gặp rào cản CORS/cross-site.
+            Ngược lại, Socket.IO kết nối trực tiếp tới backend để tránh giới hạn proxy WebSocket của Next.js, và dùng vé ngắn hạn lấy từ API xác thực để tham gia phòng an toàn.
+          </p>
+        </details>
+      </div>
+
+      <div class="quiz-item">
+        <div class="quiz-q">Câu 2: QR phòng và VietQR đơn khác nhau ở điểm nào?</div>
+        <details>
+          <summary>Xem đáp án</summary>
+          <p>
+            <strong>QR phòng</strong> chứa đường dẫn <code>/r/&lt;roomCode&gt;</code> để người mua vào phòng live xem món và bình luận.
+            <strong>VietQR đơn</strong> được sinh từ <code>/api/orders/:token/qr.png</code>, chứa số tiền cụ thể của đơn hàng và nội dung chuyển khoản <code>LM &lt;mã ngắn&gt;</code>.
+          </p>
+        </details>
+      </div>
+
+      <div class="quiz-item">
+        <div class="quiz-q">Câu 3: Khi người bán sửa tay một đơn hàng hoặc bấm duyệt (<code>approve</code>), điều gì ngăn AI ghi đè lại đơn đó?</div>
+        <details>
+          <summary>Xem đáp án</summary>
+          <p>
+            Cờ <code>sellerEdited</code> trên đơn hàng được đặt thành <code>true</code>. Pipeline AI kiểm tra cờ này và không tự động ghi đè lên đơn đã có can thiệp thủ công của người bán.
+          </p>
+        </details>
+      </div>
+
+      <div class="quiz-item">
+        <div class="quiz-q">Câu 4: Doanh thu trong báo cáo tổng kết (<code>computeSessionSummary</code>) được tính từ những trạng thái đơn nào?</div>
+        <details>
+          <summary>Xem đáp án</summary>
+          <p>
+            Chỉ tính các đơn ở trạng thái <code>paid</code> và <code>delivered</code>. Các đơn <code>pending_payment</code>, <code>awaiting_confirmation</code> (đơn treo) và <code>cancelled</code> không cộng vào doanh thu thực thu.
+          </p>
+        </details>
+      </div>
+
+      <div class="quiz-item">
+        <div class="quiz-q">Câu 5: Số liệu load test <code>p50 = 395 ms, p95 = 474 ms</code> có chứng minh được tốc độ Gemini API thực tế không?</div>
+        <details>
+          <summary>Xem đáp án</summary>
+          <p>
+            <strong>Không.</strong> Kịch bản load test local chạy với <code>LLM_PROVIDER=fake</code> (30 người mua, 120 bình luận/phút trong 60 giây). Đây chỉ là thời gian xử lý backend tới verdict trong điều kiện giả lập, chưa phản ánh độ trễ mạng/API của Gemini thật hay độ mượt trên thiết bị thật.
+          </p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var STORAGE_KEY = "livemate-handoff-theme";
+      var root = document.documentElement;
+      var btn = document.getElementById("theme-toggle");
+      var label = document.getElementById("theme-label");
+      var icon = document.getElementById("theme-icon");
+
+      function safeGetTheme() {
+        try {
+          return window.localStorage.getItem(STORAGE_KEY);
+        } catch (_err) {
+          return null;
+        }
+      }
+
+      function safeSetTheme(val) {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, val);
+        } catch (_err) {
+          // Bỏ qua nếu localStorage bị chặn
+        }
+      }
+
+      function getEffectiveTheme() {
+        var explicit = root.getAttribute("data-theme");
+        if (explicit === "dark" || explicit === "light") return explicit;
+        return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+
+      function updateButtonUI() {
+        var current = getEffectiveTheme();
+        if (current === "dark") {
+          label.textContent = "Chế độ tối";
+          icon.textContent = "☾";
+        } else {
+          label.textContent = "Chế độ sáng";
+          icon.textContent = "☀";
+        }
+      }
+
+      var saved = safeGetTheme();
+      if (saved === "dark" || saved === "light") {
+        root.setAttribute("data-theme", saved);
+      }
+      updateButtonUI();
+
+      if (btn) {
+        btn.addEventListener("click", function () {
+          var next = getEffectiveTheme() === "dark" ? "light" : "dark";
+          root.setAttribute("data-theme", next);
+          safeSetTheme(next);
+          updateButtonUI();
+        });
+      }
+
+      if (window.matchMedia) {
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+          if (!root.getAttribute("data-theme")) {
+            updateButtonUI();
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

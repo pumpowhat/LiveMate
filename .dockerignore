@@ -3,7 +3,6 @@ node_modules
 .git
 **/.env
 **/.env.*
-!**/.env.example
 apps/extension
 apps/web
 apps/server/eval-results

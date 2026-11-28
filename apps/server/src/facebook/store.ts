@@ -8,11 +8,11 @@ export interface FacebookConnection {
 }
 
 export interface FacebookConnectionStore {
-  save(sellerId: string, userToken: string, pages: FbPage[]): void;
-  get(sellerId: string): FacebookConnection | null;
-  selectPage(sellerId: string, pageId: string): FbPage | null;
-  selectedPage(sellerId: string): FbPage | null;
-  disconnect(sellerId: string): void;
+  save(sellerId: string, userToken: string, pages: FbPage[]): void | Promise<void>;
+  get(sellerId: string): FacebookConnection | null | Promise<FacebookConnection | null>;
+  selectPage(sellerId: string, pageId: string): FbPage | null | Promise<FbPage | null>;
+  selectedPage(sellerId: string): FbPage | null | Promise<FbPage | null>;
+  disconnect(sellerId: string): void | Promise<void>;
 }
 
 export class InMemoryFacebookConnectionStore implements FacebookConnectionStore {
