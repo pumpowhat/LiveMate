@@ -9,7 +9,7 @@
 ## Chuẩn bị trước khi quay
 
 ### 1. Tài khoản
-- **Tài khoản người bán (demo):** `[CẦN ĐIỀN: email/mật khẩu tài khoản demo]` đã kết nối sẵn Fanpage `[CẦN ĐIỀN: tên Fanpage]`.
+- **Tài khoản người bán (demo):** `demo@livemate.vn` (mật khẩu gửi kèm trong bài nộp) đã kết nối sẵn Fanpage `[CẦN ĐIỀN: tên Fanpage]`.
 - **Tài khoản người mua (2–3 tài khoản Facebook):** dùng trên điện thoại để bình luận thật (hoặc 2–3 tab phòng live dự phòng).
 - **Tài khoản ngân hàng VietQR test:** đã cấu hình `VIETQR_BANK_BIN` và `VIETQR_ACCOUNT_NUMBER` trên server.
 - **Tài khoản khách từng boom đơn (dữ liệu mẫu):** tạo sẵn 1 lịch sử boom đơn cho một tài khoản người mua để kích hoạt cảnh báo rủi ro.

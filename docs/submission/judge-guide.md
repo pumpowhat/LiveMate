@@ -3,14 +3,14 @@
 **Chốt** là trợ lý AI chốt đơn livestream theo thời gian thực: tự đọc bình luận, tạo/sửa/hủy đơn, sinh mã VietQR từng đơn và cảnh báo rủi ro boom đơn.
 
 ## 1. Thông tin truy cập
-- **Màn hình người bán:** `[CẦN ĐIỀN: URL frontend Vercel]`
-- **Tài khoản demo:** Email `[CẦN ĐIỀN: email]` | Mật khẩu `[CẦN ĐIỀN: mật khẩu]`
+- **Màn hình người bán:** `https://livemate.vercel.app/seller/login`
+- **Tài khoản demo:** Email `demo@livemate.vn` | Mật khẩu `gửi kèm trong bài nộp`
 - **Kênh người mua (chọn 1 trong 2):**
   - **Facebook (chính):** `[CẦN ĐIỀN: URL bài đăng/video ghim trên Fanpage]`
-  - **Phòng live dự phòng:** `[CẦN ĐIỀN: URL phòng live hoặc quét QR trên màn hình người bán]`
+  - **Phòng live dự phòng:** `https://livemate.vercel.app/r/DEMO` (mã phòng DEMO, hoặc quét QR trên màn hình người bán)
 
 ## 2. Trải nghiệm nhanh trong 3 phút (2 thiết bị hoặc 2 tab)
-1. **Đăng nhập người bán** trên laptop/tab 1 bằng tài khoản demo (Fanpage đã kết nối sẵn).
+1. **Đăng nhập người bán** trên laptop/tab 1 bằng tài khoản demo (nếu Fanpage chưa kết nối, dùng phòng live dự phòng ở mục 1).
 2. **Chọn món đang giới thiệu:** bấm chọn **Váy hoa nhí (`V03`, 250.000đ)**.
 3. **Đóng vai người mua** trên điện thoại (hoặc tab 2): vào bài ghim Fanpage hoặc phòng live dự phòng, gõ *"chốt váy này size M"*.
 4. **Xem màn hình người bán:** đơn hàng mới hiện tức thì kèm tồn kho.
