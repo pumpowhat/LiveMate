@@ -4,6 +4,7 @@ packages:
 allowBuilds:
   esbuild: true
   prisma: true
+  "@prisma/client": false
   "@prisma/engines": true
 minimumReleaseAgeExclude:
   - openai@7.65.0

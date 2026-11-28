@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionStatus {
+  live
+  ended
+}
+
+enum CommentSource {
+  facebook
+  room
+  extension
+}
+
+enum OrderStatus {
+  pending_payment
+  awaiting_confirmation
+  paid
+  delivered
+  cancelled
+}
+
+enum CommentVerdict {
+  ignored
+  queued
+  create
+  update
+  cancel
+  ask
+  unparsed
+}
+
+enum RiskKind {
+  buyer_history_boom
+  unusual_quantity
+  payment_not_found
+  out_of_stock
+}
+
+enum RiskSeverity {
+  info
+  warning
+  danger
+}
+
+model Seller {
+  id                 String              @id @default(uuid())
+  email              String              @unique
+  passwordHash       String
+  displayName        String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  authSessions       AuthSession[]
+  liveSessions       LiveSession[]
+  facebookConnection FacebookConnection?
+}
+
+model AuthSession {
+  id        String   @id @default(uuid())
+  sellerId  String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  seller    Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+}
+
+model FacebookConnection {
+  id             String   @id @default(uuid())
+  sellerId       String   @unique
+  userToken      String
+  pages          Json
+  selectedPageId String?
+  connectedAt    DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  seller         Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+}
+
+model LiveSession {
+  id                 String            @id @default(uuid())
+  roomCode           String            @unique
+  sellerId           String
+  status             SessionStatus     @default(live)
+  featuredProductId  String?
+  previouslyFeatured String[]          @default([])
+  facebookObjectId   String?
+  facebookPageId     String?
+  nextOrderSeq       Int               @default(0)
+  startedAt          DateTime          @default(now())
+  endedAt            DateTime?
+  seller             Seller            @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  products           Product[]
+  buyers             Buyer[]
+  buyerCapabilities  BuyerCapability[]
+  orders             Order[]
+  comments           Comment[]
+  riskAlerts         RiskAlert[]
+
+  @@index([sellerId, startedAt])
+}
+
+model Product {
+  id        String      @id @default(uuid())
+  sessionId String
+  code      String
+  name      String
+  sizes     String[]
+  price     Int
+  stock     Json
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  session   LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, code])
+  @@index([sessionId, createdAt])
+}
+
+model Buyer {
+  id          String        @id @default(uuid())
+  sessionId   String
+  source      CommentSource
+  externalId  String
+  displayName String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  session     LiveSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  orders      Order[]
+
+  @@unique([sessionId, externalId])
+}
+
+model BuyerCapability {
+  id              String      @id @default(uuid())
+  sessionId       String
+  tokenHash       String      @unique
+  buyerExternalId String
+  displayName     String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  session         LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, buyerExternalId])
+}
+
+model Order {
+  id               String      @id @default(uuid())
+  code             String
+  sessionId        String
+  buyerId          String
+  status           OrderStatus @default(pending_payment)
+  total            Int         @default(0)
+  publicToken      String      @unique
+  sourceCommentIds String[]    @default([])
+  sellerEdited     Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  session          LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  buyer            Buyer       @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  items            OrderItem[]
+
+  @@unique([sessionId, code])
+  @@index([sessionId, createdAt])
+  @@index([sessionId, buyerId])
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String
+  productId   String
+  productCode String
+  productName String
+  size        String?
+  qty         Int
+  unitPrice   Int
+  sortOrder   Int     @default(0)
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, sortOrder])
+}
+
+model Comment {
+  id              String          @id
+  sessionId       String
+  source          CommentSource
+  externalId      String?
+  buyerExternalId String
+  buyerName       String
+  text            String
+  verdict         CommentVerdict?
+  verdictOrderId  String?
+  createdAt       DateTime        @default(now())
+  session         LiveSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model RiskAlert {
+  id              String       @id @default(uuid())
+  sessionId       String
+  orderId         String?
+  buyerExternalId String
+  kind            RiskKind
+  severity        RiskSeverity
+  message         String
+  createdAt       DateTime     @default(now())
+  session         LiveSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model BuyerHistory {
+  buyerExternalId String   @id
+  boomed          Int      @default(0)
+  completed       Int      @default(0)
+  updatedAt       DateTime @updatedAt
+}

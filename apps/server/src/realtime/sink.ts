@@ -1,23 +1,43 @@
-import { sellerRoom, type ClientToServerEvents, type Comment, type ServerToClientEvents } from "@livemate/shared";
+import { buyerRoom, orderRoom, sellerRoom, type ClientToServerEvents, type Comment, type Order, type PublicOrder, type RiskAlert, type ServerToClientEvents } from "@livemate/shared";
 import type { Server } from "socket.io";
+import { toPublicOrder } from "../payment/public-order.ts";
 import type { PipelineSink } from "../pipeline/pipeline.ts";
 
-export type Io = Server<ClientToServerEvents, ServerToClientEvents>;
+export type Io = Server<ClientToServerEvents, ServerToClientEvents<Order | PublicOrder>>;
 
 export interface SinkDeps {
   io: Io;
   /** sessionId -> roomCode */
   roomOf: (sessionId: string) => string | undefined;
+  /** Cho phép gửi reply:new công khai chỉ ở luồng DEMO dev script cũ. */
+  isLegacyPublicDemo?: (sessionId: string) => boolean;
   /** Trả lời bình luận Facebook; bỏ trống khi chưa kết nối Fanpage. */
   replyOnFacebook?: (sessionId: string, fbCommentId: string, text: string) => Promise<void>;
   /** Link trang đơn công khai, ví dụ `${PUBLIC_WEB_URL}/o/${token}`. */
   orderUrl: (publicToken: string) => string;
+  onRiskAlert: (alert: RiskAlert) => void;
   log?: (msg: string, extra?: unknown) => void;
+}
+
+export function emitOrderPrivate(
+  io: Io,
+  roomCode: string,
+  event: "order:created" | "order:updated" | "payment:reported" | "payment:confirmed",
+  order: Order,
+): void {
+  io.to(sellerRoom(roomCode))
+    .to(buyerRoom(order.sessionId, order.buyer.externalId))
+    .emit(event, order);
+  io.to(orderRoom(order.publicToken))
+    .except(sellerRoom(roomCode))
+    .except(buyerRoom(order.sessionId, order.buyer.externalId))
+    .emit(event, toPublicOrder(order, roomCode));
 }
 
 /**
  * Phát kết quả pipeline:
- * - Mọi người trong phòng: đơn mới/cập nhật, câu trả lời của shop.
+ * - Đơn hàng mới/cập nhật: CHỈ gửi tới người bán sở hữu phiên, phòng riêng người mua, và phòng đơn hàng.
+ * - Câu trả lời của shop: gửi người bán + người mua mục tiêu (và DEMO dev script khi bật).
  * - Chỉ người bán: verdict từng bình luận, cảnh báo cần xem lại.
  * - Người mua Facebook: Fanpage trả lời bình luận (kèm link đơn khi vừa tạo đơn).
  */
@@ -37,25 +57,32 @@ export function createSocketSink(deps: SinkDeps): PipelineSink {
 
     onOrder(sessionId, order, created, comment) {
       const room = deps.roomOf(sessionId);
-      if (room) io.to(room).emit(created ? "order:created" : "order:updated", order);
+      if (room) emitOrderPrivate(io, room, created ? "order:created" : "order:updated", order);
       if (!created) return;
       // Đơn vừa tạo từ bình luận Facebook: trả lời kèm link thanh toán.
-      {
-        const items = order.items.map((i) => `${i.qty} ${i.productCode}${i.size ? ` size ${i.size}` : ""}`).join(", ");
-        fbReply(sessionId, comment, `Shop đã ghi đơn #${order.code}: ${items}. Thanh toán tại: ${deps.orderUrl(order.publicToken)}`);
-      }
+      const items = order.items.map((i) => `${i.qty} ${i.productCode}${i.size ? ` size ${i.size}` : ""}`).join(", ");
+      fbReply(sessionId, comment, `Shop đã ghi đơn #${order.code}: ${items}. Thanh toán tại: ${deps.orderUrl(order.publicToken)}`);
     },
 
     onReply(sessionId, comment, text) {
       const room = deps.roomOf(sessionId);
-      if (room) io.to(room).emit("reply:new", { buyerExternalId: comment.buyerExternalId, commentId: comment.id, text });
+      const payload = { buyerExternalId: comment.buyerExternalId, commentId: comment.id, text };
+      if (room) {
+        io.to(sellerRoom(room))
+          .to(buyerRoom(sessionId, comment.buyerExternalId))
+          .emit("reply:new", payload);
+        if (deps.isLegacyPublicDemo?.(sessionId)) {
+          io.to(room)
+            .except(sellerRoom(room))
+            .except(buyerRoom(sessionId, comment.buyerExternalId))
+            .emit("reply:new", payload);
+        }
+      }
       fbReply(sessionId, comment, text);
     },
 
     onNeedsReview(sessionId, comment, op) {
-      const room = deps.roomOf(sessionId);
-      if (!room) return;
-      io.to(sellerRoom(room)).emit("risk:alert", {
+      deps.onRiskAlert({
         id: `review_${comment.id}`,
         sessionId,
         orderId: op.orderId,

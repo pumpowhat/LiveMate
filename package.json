@@ -7,6 +7,8 @@
   },
   "scripts": {
     "dev:server": "pnpm --filter @livemate/server dev",
+    "dev:web": "pnpm --filter @livemate/web dev",
+    "build:web": "pnpm --filter @livemate/web build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"
   }

@@ -134,6 +134,10 @@ export class RiskEngine {
   }
 
   onPaymentConfirmed(orderId: string): void {
+    this.clearPaymentTimer(orderId);
+  }
+
+  clearPaymentTimer(orderId: string): void {
     const timer = this.paymentTimers.get(orderId);
     if (timer === undefined) return;
 

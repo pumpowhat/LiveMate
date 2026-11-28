@@ -246,17 +246,23 @@ packages/
 
 ## 13. Cài đặt và chạy
 
-Yêu cầu: Node 24 (`.nvmrc`), pnpm (`corepack enable pnpm`).
+Yêu cầu: Node 24 (`.nvmrc`), pnpm (`corepack enable pnpm`). Chạy các lệnh ở gốc repo.
 
 ```bash
 pnpm install
-cp apps/server/.env.example apps/server/.env   # điền LLM key, VietQR, Facebook
+cp apps/server/.env.example apps/server/.env
+cp apps/web/.env.example apps/web/.env.local
 
-# Chạy server (phòng DEMO in-memory). Chưa có LLM key thì dùng LLM_PROVIDER=fake
-pnpm dev:server
+# Thử phòng DEMO ngay, không cần PostgreSQL hay khóa LLM.
+DATABASE_URL= LLM_PROVIDER=fake pnpm dev:server
+
+# Mở terminal khác để chạy web tại http://localhost:3000.
+pnpm dev:web
 
 # Kiểm tra
-pnpm test                                               # unit test
+pnpm test                                               # test toàn workspace
+pnpm typecheck
+pnpm build:web
 pnpm --filter @livemate/server exec tsx scripts/smoke.ts  # chạy thử toàn luồng với server đang chạy
 pnpm --filter @livemate/server eval                     # so sánh LLM trên 50 bình luận mẫu
 
@@ -264,6 +270,8 @@ pnpm --filter @livemate/server eval                     # so sánh LLM trên 50 
 pnpm --filter @livemate/server exec tsx scripts/fb-spike.ts <post-or-live-video-id>
 pnpm --filter @livemate/server exec tsx scripts/fb-spike.ts --live <page-id>
 ```
+
+Với PostgreSQL, đặt `DATABASE_URL` trong `apps/server/.env`, chạy `pnpm --filter @livemate/server db:migrate` rồi khởi động backend. Backend tự tạo tài khoản và phòng `DEMO` khi cần. Chế độ local dùng được `demo@livemate.vn` và mật khẩu mẫu `livemate-demo` nếu chưa ghi đè qua biến môi trường. Xem cấu hình Railway và Vercel trong [hướng dẫn triển khai](docs/deploy.md).
 
 API dev của server: `GET /health`, `GET /api/dev/state`, `POST /api/dev/featured {code}`,
 `POST /api/dev/facebook/watch {objectId}`, `GET /api/orders/:token/qr.png`.
@@ -278,6 +286,9 @@ API dev của server: `GET /health`, `GET /api/dev/state`, `POST /api/dev/featur
 | Thư viện mã nguồn mở | `express` (MIT) | HTTP server và REST API cho `@livemate/server` |
 | Thư viện mã nguồn mở | `openai` (Apache-2.0) | SDK gọi LLM qua endpoint tương thích OpenAI (Gemini, OpenAI) |
 | Thư viện mã nguồn mở | `qrcode` (MIT) | Tạo ảnh mã QR thanh toán VietQR phía backend |
+| Thư viện mã nguồn mở | Next.js, React, Tailwind CSS và Radix UI (MIT) | Giao diện người bán, phòng live và trang đơn hàng |
+| Thư viện mã nguồn mở | Prisma (Apache-2.0), bcrypt.js (MIT) | Lưu dữ liệu PostgreSQL và băm mật khẩu người bán |
+| Thư viện mã nguồn mở | qrcode.react (ISC), Lucide (ISC) | QR dẫn vào phòng live và biểu tượng giao diện |
 | Thư viện mã nguồn mở | `socket.io` (MIT) | Giao tiếp thời gian thực giữa server, màn hình người bán và phòng live |
 | Thư viện mã nguồn mở | `zod` (MIT) | Định nghĩa và kiểm tra schema dữ liệu dùng chung (`@livemate/shared`, `@livemate/server`) |
 | Thư viện mã nguồn mở | `TypeScript` (Apache-2.0) | Kiểm tra kiểu tĩnh cho `@livemate/server` và `@livemate/shared` |
@@ -292,8 +303,8 @@ API dev của server: `GET /health`, `GET /api/dev/state`, `POST /api/dev/featur
 | Dịch vụ / API | Vercel | Hosting frontend (dự kiến) |
 | Dịch vụ / API | GitHub | Lưu trữ mã nguồn và phối hợp nhóm |
 | Công cụ AI hỗ trợ phát triển | Claude Code (Anthropic, Claude Opus 5.5) | Thiết kế kiến trúc, pipeline AI và review code |
-| Công cụ AI hỗ trợ phát triển | OpenAI Codex CLI (`gpt-6.2-sol`) | Phát triển module VietQR, Facebook, cảnh báo rủi ro, extension và test |
-| Công cụ AI hỗ trợ phát triển | Google Antigravity CLI `agy` (Gemini 4 Hydrogen) | Scaffold monorepo, tạo bộ 50 bình luận test và viết test phụ |
+| Công cụ AI hỗ trợ phát triển | OpenAI Codex CLI (`gpt-6.2-sol`) | Phát triển VietQR, Facebook, cảnh báo rủi ro và extension. Điều phối, tích hợp và nghiệm thu thay đổi #1–#8. |
+| Công cụ AI hỗ trợ phát triển | Google Antigravity CLI `agy` (Gemini 4 Hydrogen) | Scaffold monorepo, tạo dữ liệu test và triển khai backend, web cho #1–#8. |
 | Tài sản có sẵn | Danh mục hàng mẫu (`apps/server/fixtures/catalog.json`) | Dữ liệu sản phẩm mẫu phục vụ demo và kiểm thử — tự tạo, dữ liệu giả |
 | Tài sản có sẵn | Bộ 50 bình luận test (`apps/server/fixtures/eval-cases.json`) | Bộ dữ liệu đánh giá độ chính xác AI — sinh bằng AI, nhóm đã rà soát |
 
