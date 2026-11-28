@@ -113,8 +113,22 @@ test("sends updates to a seller-edited order for review", async () => {
   const existing = await existingOrder();
   const action = update({ size: "L" });
   expect(existing.resolve(action, { ...existing.order, sellerEdited: true })).toEqual([
-    { kind: "needs_review", commentId: "c2", buyer: buyer.externalId, orderId: existing.order.id, action },
+    { kind: "needs_review", commentId: "c2", buyer: buyer.externalId, orderId: existing.order.id, action, reason: "seller_edited" },
   ]);
+});
+
+test("sends every change to an order awaiting payment confirmation for review", async () => {
+  const existing = await existingOrder();
+  const awaiting = { ...existing.order, status: "awaiting_confirmation" as const };
+  for (const action of [
+    create({ commentId: "c3", item: "V05" }),
+    update({ size: "L" }),
+    { action: "cancel", commentId: "c4", buyer: buyer.externalId, item: null } satisfies AiAction,
+  ]) {
+    expect(existing.resolve(action, awaiting)).toEqual([
+      { kind: "needs_review", commentId: action.commentId, buyer: buyer.externalId, orderId: existing.order.id, action, reason: "payment_reported" },
+    ]);
+  }
 });
 
 test("updates the line just created earlier in the same batch after setOrder", async () => {

@@ -86,7 +86,9 @@ export function createSocketSink(deps: SinkDeps): PipelineSink {
         buyerExternalId: comment.buyerExternalId,
         kind: "unusual_quantity",
         severity: "info",
-        message: `Đơn đã được sửa tay, AI không tự đổi. Khách viết: "${comment.text}"`,
+        message: op.reason === "payment_reported"
+          ? `Khách đã báo chuyển tiền, AI không tự đổi đơn. Khách viết: "${comment.text}"`
+          : `Đơn đã được sửa tay, AI không tự đổi. Khách viết: "${comment.text}"`,
         createdAt: new Date().toISOString(),
       });
     },
